@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+venv/
+env/
+
+# 敏感信息
+.env
+
+# 数据库
+*.db
+*.sqlite
+
+# 日志
+logs/
+*.log
+
+# 用户数据
+user_data/
+config_runtime_*.json
+venv_trend/
+user_info/
+
+# 系统文件
+.DS_Store
+.idea/
+.vscode/

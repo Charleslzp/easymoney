@@ -1,0 +1,90 @@
+
+{
+    "$schema": "https://schema.freqtrade.io/schema.json",
+    "timeframe": "15m",
+    "strategy": "MyStrategy",
+    "max_open_trades": 20,
+    "stake_currency": "USDT",
+    "stake_amount": 100,
+    "tradable_balance_ratio": 0.99,
+    "fiat_display_currency": "USD",
+    "dry_run": true,
+    "short_enable": true,
+    "dry_run_wallet": 30000,
+    "cancel_open_orders_on_exit": false,
+    "process_only_new_candles": true,
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "leverage": 5,
+    "position_stacking": true,
+    "use_custom_exit": true,
+    "use_exit_signal": true,
+    "position_adjustment_enable": true,
+    "unfilledtimeout": {
+        "entry": 10,
+        "exit": 10,
+        "exit_timeout_count": 0,
+        "unit": "minutes"
+    },
+    "entry_pricing": {
+        "price_side": "other",
+        "use_order_book": true,
+        "order_book_top": 1,
+        "price_last_balance": 0.0,
+        "check_depth_of_market": {
+            "enabled": false,
+            "bids_to_ask_delta": 1
+        }
+    },
+    "exit_pricing":{
+        "price_side": "other",
+        "use_order_book": true,
+        "order_book_top": 1
+    },
+    "exchange": {
+        "name": "binance",
+
+        "key": " xxx ",
+        "secret": " xxx",
+        "ccxt_config": {
+            "apiKey": "xxx",
+            "secret": "xxx"
+
+
+        },
+
+        "pair_whitelist": [
+    "AAVE/USDT:USDT", "ADA/USDT:USDT", "AVAX/USDT:USDT", "BNB/USDT:USDT",
+    "BTC/USDT:USDT", "DOGE/USDT:USDT", "ETH/USDT:USDT", "ICP/USDT:USDT",
+    "LINK/USDT:USDT", "LTC/USDT:USDT", "SOL/USDT:USDT", "SUI/USDT:USDT",
+    "TRB/USDT:USDT", "TRX/USDT:USDT",  "XRP/USDT:USDT"
+],
+        "pair_blacklist": [
+            "BNB/.*"
+        ]
+    },
+    "pairlists": [
+        {
+            "method": "StaticPairList"
+        }
+    ],
+
+    "api_server": {
+        "enabled": true,
+        "listen_ip_address": "0.0.0.0",
+        "listen_port": 8080,
+        "verbosity": "error",
+        "enable_openapi": false,
+        "jwt_secret_key": "a8b059a3bee55f8aeb2792acda6cedad2b680b01ea7f66dd69f84a602926d51d",
+        "ws_token": "qjFc0Rek274ebnjPvlZkMSS8Lvy934L1Hg",
+        "CORS_origins": [],
+        "username": "pythonuser",
+        "password": "lzplzp123123"
+    },
+    "bot_name": "freqtrade",
+    "initial_state": "running",
+    "force_entry_enable": false,
+    "internals": {
+        "process_throttle_secs": 30
+    }
+}
