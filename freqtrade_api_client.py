@@ -1,12 +1,20 @@
 """
-freqtrade_api_client.py - Freqtrade REST API 客户端（带认证）
+freqtrade_api_client.py - Freqtrade REST API 客户端(带认证)
+修改: 集成 improved_performance_formatter
 """
 
 import requests
 from requests.auth import HTTPBasicAuth
 import logging
 from typing import Dict, List, Tuple, Optional, Any
-import json
+
+# 导入增强的性能格式化器
+try:
+    from improved_performance_formatter import PerformanceFormatter
+    HAS_ENHANCED_FORMATTER = True
+except ImportError:
+    HAS_ENHANCED_FORMATTER = False
+    logging.warning("未找到 improved_performance_formatter,使用原始格式化")
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +30,13 @@ class FreqtradeAPIClient:
         self.username = "pythonuser"
         self.password = "lzplzp123123"
 
+        # 初始化性能格式化器
+        if HAS_ENHANCED_FORMATTER:
+            self.performance_formatter = PerformanceFormatter()
+            logger.info("已加载增强的性能格式化器")
+        else:
+            self.performance_formatter = None
+
     def _get_api_port(self, user_id: int) -> int:
         """获取用户的 API 端口"""
         return 8080 + (user_id % 1000)
@@ -33,7 +48,6 @@ class FreqtradeAPIClient:
 
     def _get_auth(self, user_id: int) -> HTTPBasicAuth:
         """获取认证信息"""
-        #password = self.password_template.format(user_id=user_id)
         return HTTPBasicAuth(self.username, self.password)
 
     def _request(
@@ -44,7 +58,7 @@ class FreqtradeAPIClient:
         data: dict = None
     ) -> Tuple[bool, Any]:
         """
-        发送 API 请求（带认证）
+        发送 API 请求(带认证)
 
         Args:
             user_id: 用户 ID
@@ -97,7 +111,7 @@ class FreqtradeAPIClient:
         return self._request(user_id, "show_config")
 
     def status(self, user_id: int) -> Tuple[bool, Dict]:
-        """获取当前交易状态（持仓）"""
+        """获取当前交易状态(持仓)"""
         return self._request(user_id, "status")
 
     def balance(self, user_id: int) -> Tuple[bool, Dict]:
@@ -173,7 +187,7 @@ class FreqtradeAPIClient:
         """强制卖出"""
         return self._request(user_id, f"forcesell", method="POST", data={"tradeid": trade_id})
 
-    # ========== 格式化输出函数（保持不变）==========
+    # ========== 格式化输出函数 ==========
 
     def format_status(self, data: Any) -> str:
         """格式化持仓状态"""
@@ -192,7 +206,7 @@ class FreqtradeAPIClient:
         report += "=" * 30 + "\n\n"
 
         for trade in trades:
-            direction = "🔻" if trade.get('is_short') else "🔺"
+            direction = "📻" if trade.get('is_short') else "📺"
             profit_pct = trade.get('profit_pct', 0) or trade.get('profit_ratio', 0) * 100
             profit_abs = trade.get('profit_abs', 0) or trade.get('profit_abs_total', 0)
 
@@ -244,8 +258,36 @@ class FreqtradeAPIClient:
 
         return report
 
-    def format_performance(self, data: Any) -> str:
-        """格式化性能数据"""
+    def format_performance(self, data: Any, user_id: int = None) -> str:
+        """
+        格式化性能数据 - 使用增强版格式化器（向后兼容）
+
+        Args:
+            data: 性能数据
+            user_id: 用户ID(可选,用于获取余额数据)
+        """
+        # 如果有增强格式化器且提供了user_id,尝试获取余额数据
+        if self.performance_formatter and user_id:
+            try:
+                balance_success, balance_data = self.balance(user_id)
+                balance_info = balance_data if balance_success else None
+            except Exception as e:
+                logger.warning(f"获取余额数据失败: {e}, 使用无余额模式")
+                balance_info = None
+
+            return self.performance_formatter.format_enhanced_performance(
+                data,
+                balance_info
+            )
+        elif self.performance_formatter:
+            # 有格式化器但没有user_id,使用无余额模式
+            return self.performance_formatter.format_enhanced_performance(data, None)
+
+        # 否则使用原始格式化
+        return self._format_performance_original(data)
+
+    def _format_performance_original(self, data: Any) -> str:
+        """原始性能格式化(向后兼容)"""
         if not data:
             return "📊 暂无性能数据"
 
@@ -345,7 +387,6 @@ def test_api_client(user_id: int):
     print(f"测试 Freqtrade API 客户端 (用户 {user_id})")
     print(f"API URL: {client._get_base_url(user_id)}")
     print(f"用户名: {client.username}")
-    print(f"密码: {client.password_template.format(user_id=user_id)}")
     print("=" * 50)
 
     # 测试连接
@@ -366,6 +407,14 @@ def test_api_client(user_id: int):
     success, data = client.profit(user_id)
     if success:
         print(client.format_profit(data))
+    else:
+        print(f"失败: {data}")
+
+    # 测试性能(使用增强格式化)
+    print("\n4. 性能统计:")
+    success, data = client.performance(user_id)
+    if success:
+        print(client.format_performance(data, user_id))
     else:
         print(f"失败: {data}")
 

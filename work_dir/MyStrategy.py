@@ -202,7 +202,7 @@ class MyStrategy(IStrategy):
         if TREND_CLIENT_AVAILABLE:
             trend_service_url = os.getenv(
                 'TREND_SERVICE_URL',
-                self.config.get('trend_service_url', 'http://host.docker.internal:5000')
+                self.config.get('trend_service_url', 'http://172.17.0.1:5000')
             )
             self.trend_client = TrendServiceClient(trend_service_url)
 

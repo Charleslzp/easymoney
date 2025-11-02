@@ -1,28 +1,136 @@
 """
-freqtrade_commander.py - Freqtrade 命令执行器
+freqtrade_commander.py - Freqtrade 命令执行器（重构版）
 通过 Docker API 在容器内执行 Freqtrade 命令
+修复: 删除重复代码,使用统一解析器
 """
 
 import docker
 import logging
-from typing import Tuple, Optional, Dict, Any
-import json
-import time
+import re
+from typing import Tuple, Optional, Dict, Any, List
 
 logger = logging.getLogger(__name__)
+
+
+class FreqtradeOutputParser:
+    """统一的 Freqtrade 输出解析器"""
+
+    @staticmethod
+    def extract_number_from_line(line: str, keywords: list, unit: str = '') -> float:
+        """
+        从行中提取数字的通用方法
+
+        Args:
+            line: 文本行
+            keywords: 关键词列表
+            unit: 单位(如 'USDT', '%')
+
+        Returns:
+            提取的数字,失败返回 0.0
+        """
+        if any(kw in line for kw in keywords):
+            pattern = r'([\d,.]+)\s*' + unit if unit else r'([\d,.]+)'
+            match = re.search(pattern, line)
+            if match:
+                return float(match.group(1).replace(',', ''))
+        return 0.0
+
+    def parse_profit(self, output: str) -> Dict[str, Any]:
+        """
+        解析 profit 命令输出
+
+        Returns:
+            包含利润统计的字典
+        """
+        result = {
+            'total_profit': 0.0,
+            'total_profit_percent': 0.0,
+            'trade_count': 0,
+            'winning_trades': 0,
+            'losing_trades': 0
+        }
+
+        lines = output.split('\n')
+
+        for line in lines:
+            # 总利润 (USDT)
+            profit = self.extract_number_from_line(
+                line, ['Total profit', '总利润'], 'USDT'
+            )
+            if profit:
+                result['total_profit'] = profit
+
+            # 平均利润百分比
+            profit_pct = self.extract_number_from_line(
+                line, ['Avg profit', '平均利润'], '%'
+            )
+            if profit_pct:
+                result['total_profit_percent'] = profit_pct
+
+            # 总交易数
+            trades = int(self.extract_number_from_line(
+                line, ['Total trades', '总交易', 'trades closed']
+            ))
+            if trades:
+                result['trade_count'] = trades
+
+            # 盈利交易数
+            winning = int(self.extract_number_from_line(
+                line, ['Winning trades', '盈利交易']
+            ))
+            if winning:
+                result['winning_trades'] = winning
+
+            # 亏损交易数
+            losing = int(self.extract_number_from_line(
+                line, ['Losing trades', '亏损交易']
+            ))
+            if losing:
+                result['losing_trades'] = losing
+
+        return result
+
+    def parse_performance(self, output: str) -> List[Dict]:
+        """
+        解析 performance 命令输出
+
+        Returns:
+            性能数据列表
+        """
+        performances = []
+        lines = output.split('\n')
+
+        for line in lines:
+            # 跳过表头和分隔线
+            if '|' in line and 'Pair' not in line and '---' not in line:
+                parts = [p.strip() for p in line.split('|') if p.strip()]
+
+                if len(parts) >= 3:
+                    try:
+                        performances.append({
+                            'pair': parts[0],
+                            'trades': int(parts[1]),
+                            'profit': float(parts[2].replace('%', '').strip())
+                        })
+                    except (ValueError, IndexError):
+                        continue
+
+        return performances
 
 
 class FreqtradeCommander:
     """Freqtrade 命令执行器"""
 
     def __init__(self):
-        """初始化 Docker 客户端"""
+        """初始化 Docker 客户端和解析器"""
         try:
             self.client = docker.from_env()
+            self.parser = FreqtradeOutputParser()
             logger.info("[INFO] Docker 客户端连接成功")
         except Exception as e:
             logger.error(f"[ERROR] Docker 客户端连接失败: {e}")
             self.client = None
+            self.parser = FreqtradeOutputParser()
 
     def _get_container_name(self, user_id: int) -> str:
         """获取用户容器名称"""
@@ -212,7 +320,7 @@ class FreqtradeCommander:
 
         cmd += " -c /freqtrade/custom_config/config.json"
 
-        return self.execute_command(user_id, cmd, timeout=300)  # 回测可能需要更长时间
+        return self.execute_command(user_id, cmd, timeout=300)
 
     def download_data(
             self,
@@ -249,7 +357,7 @@ class FreqtradeCommander:
         """
         return self.execute_command(user_id, command)
 
-    # ========== 高级功能 ==========
+    # ========== 高级功能: 解析输出 ==========
 
     def get_whitelist(self, user_id: int) -> Tuple[bool, list]:
         """获取交易对白名单"""
@@ -262,8 +370,6 @@ class FreqtradeCommander:
             return False, []
 
         try:
-            # 解析配置中的 pair_whitelist
-            # 这里需要根据实际输出格式解析
             lines = output.split('\n')
             whitelist = []
 
@@ -285,93 +391,28 @@ class FreqtradeCommander:
             return False, []
 
     def parse_profit_output(self, output: str) -> Dict[str, Any]:
-        """解析 profit 命令输出"""
-        try:
-            result = {
-                'total_profit': 0.0,
-                'total_profit_percent': 0.0,
-                'trade_count': 0,
-                'winning_trades': 0,
-                'losing_trades': 0
-            }
+        """
+        解析 profit 命令输出 (使用统一解析器)
 
-            lines = output.split('\n')
-            for line in lines:
-                if 'Total profit' in line or '总利润' in line:
-                    # 提取数字
-                    parts = line.split()
-                    for i, part in enumerate(parts):
-                        if 'USDT' in part or '$' in part:
-                            try:
-                                result['total_profit'] = float(parts[i - 1].replace(',', ''))
-                            except:
-                                pass
+        Args:
+            output: profit 命令的输出
 
-                if 'Avg profit' in line or '平均利润' in line:
-                    parts = line.split()
-                    for i, part in enumerate(parts):
-                        if '%' in part:
-                            try:
-                                result['total_profit_percent'] = float(parts[i].replace('%', ''))
-                            except:
-                                pass
+        Returns:
+            解析后的利润数据字典
+        """
+        return self.parser.parse_profit(output)
 
-                if 'Total trades' in line or '总交易' in line:
-                    parts = line.split(':')
-                    if len(parts) > 1:
-                        try:
-                            result['trade_count'] = int(parts[1].strip().split()[0])
-                        except:
-                            pass
+    def parse_performance_output(self, output: str) -> List[Dict]:
+        """
+        解析 performance 命令输出 (使用统一解析器)
 
-                if 'Winning trades' in line or '盈利交易' in line:
-                    parts = line.split(':')
-                    if len(parts) > 1:
-                        try:
-                            result['winning_trades'] = int(parts[1].strip().split()[0])
-                        except:
-                            pass
+        Args:
+            output: performance 命令的输出
 
-                if 'Losing trades' in line or '亏损交易' in line:
-                    parts = line.split(':')
-                    if len(parts) > 1:
-                        try:
-                            result['losing_trades'] = int(parts[1].strip().split()[0])
-                        except:
-                            pass
-
-            return result
-
-        except Exception as e:
-            logger.error(f"解析 profit 输出失败: {e}")
-            return {}
-
-    def parse_performance_output(self, output: str) -> list:
-        """解析 performance 命令输出"""
-        try:
-            performances = []
-            lines = output.split('\n')
-
-            # 跳过表头，查找数据行
-            for line in lines:
-                if '|' in line and 'Pair' not in line and '---' not in line:
-                    parts = [p.strip() for p in line.split('|') if p.strip()]
-
-                    if len(parts) >= 3:
-                        try:
-                            performances.append({
-                                'pair': parts[0],
-                                'trades': int(parts[1]),
-                                'profit': float(parts[2].replace('%', '').strip())
-                            })
-                        except:
-                            pass
-
-            return performances
-
-        except Exception as e:
-            logger.error(f"解析 performance 输出失败: {e}")
-            return []
+        Returns:
+            解析后的性能数据列表
+        """
+        return self.parser.parse_performance(output)
 
     def health_check(self, user_id: int) -> bool:
         """健康检查 - 检查容器是否可以执行命令"""
@@ -410,17 +451,22 @@ def test_commander(user_id: int):
     print("\n3. 测试利润命令:")
     success, output = commander.profit_show(user_id)
     print(f"成功: {success}")
-    print(f"输出:\n{output}")
+    if success:
+        parsed = commander.parse_profit_output(output)
+        print(f"解析结果: {parsed}")
+    print(f"原始输出:\n{output}")
 
     # 测试性能
     print("\n4. 测试性能命令:")
     success, output = commander.performance_show(user_id)
     print(f"成功: {success}")
-    print(f"输出:\n{output}")
+    if success:
+        parsed = commander.parse_performance_output(output)
+        print(f"解析结果 (前5条): {parsed[:5]}")
+    print(f"原始输出:\n{output}")
 
 
 if __name__ == "__main__":
-    # 测试
     import sys
 
     if len(sys.argv) > 1:

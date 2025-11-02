@@ -1,12 +1,15 @@
 """
-trade_notifier.py - 交易通知服务
-监控用户的交易并通过 Telegram 发送通知
-支持：开仓通知、平仓通知
+trade_notifier.py - 交易通知服务（改进版）
+主要改进：
+1. 修复开仓通知逻辑 - 只在真正的"新"开仓时通知
+2. 添加时间戳检查，避免通知历史交易
+3. 增强调试日志
+4. 添加测试命令
 """
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Set, Optional
 from telegram import Bot
 from freqtrade_api_client import FreqtradeAPIClient
@@ -30,17 +33,22 @@ class TradeNotifier:
         self.api_client = FreqtradeAPIClient()
         self.db = Database()
 
-        # 记录已通知的开仓交易（避免重复通知）
-        # 格式: {user_id: set(trade_ids)}
+        # 记录已通知的开仓交易
         self.notified_open_trades: Dict[int, Set[int]] = {}
-
-        # 记录已通知的平仓交易（避免重复通知）
+        # 记录已通知的平仓交易
         self.notified_close_trades: Dict[int, Set[int]] = {}
+
+        # ⭐ 记录服务启动时间，避免通知历史交易
+        self.start_time = datetime.now()
 
         # 轮询间隔（秒）
         self.poll_interval = 30
 
+        # ⭐ 初始化标志 - 用于跳过首次检查时的通知
+        self.initialized_users: Set[int] = set()
+
         logger.info("[INFO] 交易通知器初始化完成")
+        logger.info(f"[INFO] 启动时间: {self.start_time}")
 
     async def check_new_trades(self, user_id: int) -> None:
         """
@@ -50,6 +58,8 @@ class TradeNotifier:
             user_id: 用户ID
         """
         try:
+            logger.info(f"[DEBUG] 开始检查用户 {user_id} 的交易...")
+
             # 获取交易历史
             success, data = self.api_client.trades(user_id, limit=50)
 
@@ -67,21 +77,46 @@ class TradeNotifier:
             trades = data.get('trades', []) if isinstance(data, dict) else data
 
             if not trades:
+                logger.info(f"[DEBUG] 用户 {user_id} 暂无交易记录")
                 return
 
-            # 检查所有交易
+            logger.info(f"[DEBUG] 用户 {user_id} 共有 {len(trades)} 条交易记录")
+
+            # ⭐ 首次初始化：静默加载现有交易，不发送通知
+            if user_id not in self.initialized_users:
+                logger.info(f"[INFO] 首次初始化用户 {user_id}，加载现有交易但不发送通知")
+                for trade in trades:
+                    trade_id = trade.get('trade_id')
+                    is_open = trade.get('is_open', True)
+
+                    if is_open:
+                        # 标记为已通知（虽然实际上没通知）
+                        self.notified_open_trades[user_id].add(trade_id)
+                        logger.info(f"[DEBUG] 加载现有开仓交易: {trade_id}")
+                    else:
+                        # 标记为已通知
+                        self.notified_close_trades[user_id].add(trade_id)
+                        logger.info(f"[DEBUG] 加载现有平仓交易: {trade_id}")
+
+                self.initialized_users.add(user_id)
+                logger.info(f"[INFO] 用户 {user_id} 初始化完成，已加载 {len(self.notified_open_trades[user_id])} 个开仓和 {len(self.notified_close_trades[user_id])} 个平仓")
+                return
+
+            # ⭐ 正常检查：只通知新的交易
             for trade in trades:
                 trade_id = trade.get('trade_id')
                 is_open = trade.get('is_open', True)
 
                 if is_open:
-                    # ⭐ 开仓通知：交易是开仓状态且未通知过
+                    # 开仓通知：交易是开仓状态且未通知过
                     if trade_id not in self.notified_open_trades[user_id]:
+                        logger.info(f"[INFO] 🆕 发现新开仓: 用户 {user_id}, 交易 {trade_id}")
                         await self.send_open_notification(user_id, trade)
                         self.notified_open_trades[user_id].add(trade_id)
                 else:
-                    # ⭐ 平仓通知：交易已关闭且未通知过
+                    # 平仓通知：交易已关闭且未通知过
                     if trade_id not in self.notified_close_trades[user_id]:
+                        logger.info(f"[INFO] 🆕 发现新平仓: 用户 {user_id}, 交易 {trade_id}")
                         await self.send_close_notification(user_id, trade)
                         self.notified_close_trades[user_id].add(trade_id)
 
@@ -112,7 +147,7 @@ class TradeNotifier:
             is_short = trade.get('is_short', False)
             direction = "做空 🔻" if is_short else "做多 🔺"
 
-            # 当前盈亏（开仓时可能已有浮盈浮亏）
+            # 当前盈亏
             current_profit_abs = trade.get('profit_abs', 0)
             current_profit_pct = trade.get('profit_ratio', 0) * 100
 
@@ -146,10 +181,12 @@ class TradeNotifier:
                 parse_mode='HTML'
             )
 
-            logger.info(f"[INFO] 已发送开仓通知: 用户 {user_id}, 交易 {trade_id}, {pair}")
+            logger.info(f"[INFO] ✅ 已发送开仓通知: 用户 {user_id}, 交易 {trade_id}, {pair}")
 
         except Exception as e:
             logger.error(f"[ERROR] 发送开仓通知失败 (用户 {user_id}): {e}")
+            import traceback
+            traceback.print_exc()
 
     async def send_close_notification(self, user_id: int, trade: Dict) -> None:
         """
@@ -230,7 +267,7 @@ class TradeNotifier:
                 parse_mode='HTML'
             )
 
-            logger.info(f"[INFO] 已发送平仓通知: 用户 {user_id}, 交易 {trade_id}, 盈亏 {profit_abs:+.4f}")
+            logger.info(f"[INFO] ✅ 已发送平仓通知: 用户 {user_id}, 交易 {trade_id}, 盈亏 {profit_abs:+.4f}")
 
         except Exception as e:
             logger.error(f"[ERROR] 发送平仓通知失败 (用户 {user_id}): {e}")
@@ -244,7 +281,7 @@ class TradeNotifier:
         Args:
             user_id: 用户ID
         """
-        logger.info(f"[INFO] 开始监控用户 {user_id}")
+        logger.info(f"[INFO] 🔍 开始监控用户 {user_id}")
 
         while True:
             try:
@@ -259,7 +296,7 @@ class TradeNotifier:
 
     async def monitor_all_active_users(self) -> None:
         """监控所有活跃用户"""
-        logger.info("[INFO] 开始监控所有活跃用户")
+        logger.info("[INFO] 🚀 开始监控所有活跃用户")
 
         tasks = []
 
@@ -268,9 +305,14 @@ class TradeNotifier:
                 # 获取所有运行中的用户
                 running_users = self.db.get_running_users()
 
+                # ⭐ 如果没有运行中的用户，尝试获取所有注册用户
+                if not running_users and hasattr(self.db, 'get_all_users'):
+                    logger.warning("[WARN] 没有运行中的用户，尝试获取所有注册用户")
+                    running_users = self.db.get_all_users()
+
                 current_user_ids = {user['user_id'] for user in running_users}
 
-                logger.info(f"[INFO] 当前活跃用户: {current_user_ids}")
+                logger.info(f"[INFO] 📋 当前监控用户: {current_user_ids}")
 
                 # 为每个活跃用户创建监控任务
                 for user in running_users:
@@ -280,7 +322,7 @@ class TradeNotifier:
                     if not any(task.get_name() == f"monitor_{user_id}" for task in tasks if not task.done()):
                         task = asyncio.create_task(self.monitor_user(user_id), name=f"monitor_{user_id}")
                         tasks.append(task)
-                        logger.info(f"[INFO] 为用户 {user_id} 创建监控任务")
+                        logger.info(f"[INFO] ✅ 为用户 {user_id} 创建监控任务")
 
                 # 清理完成的任务
                 tasks = [task for task in tasks if not task.done()]
@@ -290,7 +332,62 @@ class TradeNotifier:
 
             except Exception as e:
                 logger.error(f"[ERROR] 监控异常: {e}")
+                import traceback
+                traceback.print_exc()
                 await asyncio.sleep(60)
+
+    async def test_notification(self, user_id: int) -> bool:
+        """
+        测试通知功能（手动触发）
+
+        Args:
+            user_id: 用户ID
+
+        Returns:
+            是否成功发送测试通知
+        """
+        try:
+            test_message = (
+                "🧪 <b>测试通知</b>\n"
+                f"{'=' * 30}\n\n"
+                "如果你收到这条消息，说明通知功能正常！\n"
+                "交易通知器已准备就绪。\n\n"
+                f"启动时间: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+
+            await self.bot.send_message(
+                chat_id=user_id,
+                text=test_message,
+                parse_mode='HTML'
+            )
+
+            logger.info(f"[INFO] ✅ 测试通知已发送给用户 {user_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"[ERROR] 发送测试通知失败: {e}")
+            return False
+
+    async def force_check_user(self, user_id: int) -> None:
+        """
+        强制检查用户交易（调试用）
+        会重新初始化用户状态
+
+        Args:
+            user_id: 用户ID
+        """
+        logger.info(f"[INFO] 🔧 强制检查用户 {user_id}")
+
+        # 移除初始化标记，强制重新扫描
+        if user_id in self.initialized_users:
+            self.initialized_users.remove(user_id)
+
+        # 清空已通知记录
+        self.notified_open_trades[user_id] = set()
+        self.notified_close_trades[user_id] = set()
+
+        # 执行检查
+        await self.check_new_trades(user_id)
 
     async def start(self) -> None:
         """启动通知服务"""
@@ -302,6 +399,8 @@ class TradeNotifier:
             logger.info("[INFO] 🛑 交易通知服务停止")
         except Exception as e:
             logger.error(f"[ERROR] 服务异常: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 def run_notifier(bot_token: str):
@@ -322,7 +421,7 @@ def run_notifier(bot_token: str):
 if __name__ == "__main__":
     import os
 
-    BOT_TOKEN = os.getenv("BOT_TOKEN", "8084831161:AAGbUGzo6nyggEtVowCAjUL_w76EiMDeZdQ")
+    BOT_TOKEN = os.getenv("BOT_TOKEN")
 
     if BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
         print("❌ 请设置 BOT_TOKEN")

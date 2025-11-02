@@ -1,0 +1,104 @@
+{
+  "zh": {
+    "main_menu": {
+      "register": "📝 注册",
+      "bind_api": "🔗 绑定API",
+      "my_payment": "💰 我的充值",
+      "my_subscription": "📋 我的订阅",
+      "use_invite": "🎁 使用邀请码",
+      "my_invite": "🎁 我的邀请码",
+      "start_trading": "▶️ 启动交易",
+      "stop_trading": "⏸️ 停止交易",
+      "view_status": "📊 查看状态",
+      "profit": "💰 利润统计",
+      "performance": "📈 币种性能",
+      "positions": "📍 持仓查询",
+      "balance": "💵 余额查询",
+      "config_manage": "⚙️ 配置管理",
+      "help": "❓ 帮助",
+      "switch_lang": "🌐 Switch to English"
+    },
+    "invite_submenu": {
+      "title": "🎁 邀请码系统",
+      "my_stats": "📊 我的邀请统计",
+      "my_invitees": "👥 我的邀请列表",
+      "share_code": "💬 分享邀请码",
+      "back": "🔙 返回主菜单"
+    },
+    "status_submenu": {
+      "title": "📊 状态查看",
+      "profit": "💰 查看收益",
+      "positions": "📍 查看持仓",
+      "performance": "📈 查看绩效",
+      "back": "🔙 返回主菜单"
+    },
+    "config_submenu": {
+      "title": "⚙️ 配置管理",
+      "modify_leverage": "📊 修改杠杆率",
+      "view_pairs": "💱 查看交易对",
+      "back": "🔙 返回主菜单"
+    },
+    "prompts": {
+      "select_option": "请选择操作:",
+      "invalid_option": "无效选项,请重新选择",
+      "register_success": "注册成功!",
+      "api_bound_success": "API绑定成功!",
+      "trading_started": "交易已启动",
+      "trading_stopped": "交易已停止",
+      "language_switched": "语言已切换为中文",
+      "invite_code_applied": "邀请码应用成功!",
+      "invite_code_invalid": "邀请码无效"
+    }
+  },
+  "en": {
+    "main_menu": {
+      "register": "📝 Register",
+      "bind_api": "🔗 Bind API",
+      "my_payment": "💰 My Recharge",
+      "my_subscription": "📋 My Subscription",
+      "use_invite": "🎁 Use Invite Code",
+      "my_invite": "🎁 My Invite Code",
+      "start_trading": "▶️ Start Trading",
+      "stop_trading": "⏸️ Stop Trading",
+      "view_status": "📊 View Status",
+      "profit": "💰 Profit",
+      "performance": "📈 Performance",
+      "positions": "📍 Positions",
+      "balance": "💵 Balance",
+      "config_manage": "⚙️ Configuration",
+      "help": "❓ Help",
+      "switch_lang": "🌐 切换到中文"
+    },
+    "invite_submenu": {
+      "title": "🎁 Invite System",
+      "my_stats": "📊 My Statistics",
+      "my_invitees": "👥 My Invitees",
+      "share_code": "💬 Share Code",
+      "back": "🔙 Back to Main"
+    },
+    "status_submenu": {
+      "title": "📊 Status View",
+      "profit": "💰 View Profit",
+      "positions": "📍 View Positions",
+      "performance": "📈 View Performance",
+      "back": "🔙 Back to Main"
+    },
+    "config_submenu": {
+      "title": "⚙️ Configuration",
+      "modify_leverage": "📊 Modify Leverage",
+      "view_pairs": "💱 View Pairs",
+      "back": "🔙 Back to Main"
+    },
+    "prompts": {
+      "select_option": "Please select an option:",
+      "invalid_option": "Invalid option, please try again",
+      "register_success": "Registration successful!",
+      "api_bound_success": "API bound successfully!",
+      "trading_started": "Trading started",
+      "trading_stopped": "Trading stopped",
+      "language_switched": "Language switched to English",
+      "invite_code_applied": "Invite code applied!",
+      "invite_code_invalid": "Invalid invite code"
+    }
+  }
+}

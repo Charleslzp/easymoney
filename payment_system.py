@@ -86,7 +86,7 @@ class PaymentSystem:
         address = derived_key.public_key.to_base58check_address()
 
         # 保存到数据库
-        self.db.save_user_address(user_id, address)
+        self.db.save_user_payment_address(user_id, address)
 
         logger.info(f"[INFO] 为用户 {user_id} 生成地址: {address}")
 
@@ -238,45 +238,71 @@ class PaymentSystem:
 
         return None
 
-    def process_new_recharge(self, recharge_info: Dict) -> bool:
+    def process_new_recharge(self, recharge_info: dict) -> bool:
         """
-        处理新充值
-
-        Args:
-            recharge_info: 充值信息
-
-        Returns:
-            是否处理成功
+        处理新充值 - 包含邀请码折扣和邀请奖励
         """
         try:
             user_id = recharge_info['user_id']
-            amount = recharge_info['amount']
+            original_amount = recharge_info['amount']
             tx_hash = recharge_info['tx_hash']
 
-            # 创建充值记录
+            # ⭐ 1. 检查用户是否有邀请码折扣
+            discount_percent = self.db.get_user_invite_discount(user_id)
+
+            # 计算实际到账金额
+            if discount_percent > 0:
+                bonus_amount = original_amount * (discount_percent / 100)
+                final_amount = original_amount + bonus_amount
+
+                logger.info(f"[充值] 💰 用户 {user_id} 使用邀请码优惠")
+                logger.info(f"[充值] 充值: {original_amount} USDT")
+                logger.info(f"[充值] 赠送: {bonus_amount:.2f} USDT ({discount_percent}%)")
+                logger.info(f"[充值] 到账: {final_amount:.2f} USDT")
+            else:
+                bonus_amount = 0
+                final_amount = original_amount
+
+            # ⭐ 2. 创建充值记录
             record_id = self.db.create_recharge_record(
                 user_id=user_id,
-                amount=amount,
+                amount=final_amount,  # 使用包含赠送的金额
                 tx_hash=tx_hash,
                 payment_address=recharge_info['address']
             )
 
-            # 自动确认充值
+            # ⭐ 3. 确认充值
             success = self.db.verify_recharge(record_id)
 
             if success:
-                logger.info(f"[INFO] 用户 {user_id} 充值成功: {amount} USDT")
+                logger.info(f"[充值] ✅ 用户 {user_id} 充值成功: {final_amount:.2f} USDT")
 
-                # 尝试自动订阅
-                self.auto_subscribe_if_sufficient_balance(user_id)
+                # ⭐ 4. 记录邀请码使用
+                if bonus_amount > 0:
+                    self.db.record_invite_code_usage(user_id, original_amount, bonus_amount)
+
+                # ⭐ 5. 处理邀请奖励 - 给邀请人发奖励
+                has_inviter, inviter_id, reward_amount = self.db.process_invite_reward(
+                    invitee_user_id=user_id,
+                    recharge_amount=original_amount,  # 基于原始充值金额计算
+                    recharge_record_id=record_id
+                )
+
+                if has_inviter:
+                    logger.info(f"[邀请奖励] ✅ 邀请人 {inviter_id} 获得 {reward_amount:.2f} USDT")
+
+                # ⭐ 6. 尝试自动订阅
+                self.auto_subscribe_if_possible(user_id)
 
                 return True
             else:
-                logger.error(f"[ERROR] 用户 {user_id} 充值确认失败")
+                logger.error(f"[充值] ❌ 充值确认失败")
                 return False
 
         except Exception as e:
-            logger.error(f"[ERROR] 处理充值异常: {e}")
+            logger.error(f"[充值] ❌ 处理充值失败: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     async def monitor_all_users(self):
