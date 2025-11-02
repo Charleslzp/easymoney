@@ -1547,107 +1547,169 @@ async def view_logs(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ========== Freqtrade REST API 命令 ==========
 
 async def ft_profit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """显示利润统计(改进版)"""
+    """查看利润统计（增强版 - 包含持仓盈亏）"""
     user_id = update.message.from_user.id
 
     if not db.user_exists(user_id):
         await update.message.reply_text("❌ 请先注册!")
         return
 
-    msg = await update.message.reply_text("🔄 正在查询利润数据...")
+    user = db.get_user_by_telegram_id(user_id)
+    if not user.get('api_key'):
+        await update.message.reply_text("❌ 请先绑定API!\n\n使用 /bind 命令绑定")
+        return
+
+    # ⭐ 获取用户语言
+    lang = menu_system.get_user_language(user_id).value
+
+    print(f"[DEBUG] 用户 {user_id} 的语言设置: {lang}")
+    logger.info(f"用户 {user_id} 的语言设置: {lang}")
+
+    msg = await update.message.reply_text("🔄 正在获取利润数据..." if lang == 'zh' else "🔄 Loading profit data...")
 
     try:
-        success, data = ft_api.profit(user_id)
+        profit_success, profit_data = ft_api.profit(user_id)
+        positions_success, positions_data = ft_api.status(user_id)
+        trades_success, trades_data = ft_api.trades(user_id, limit=50)
 
-        if success:
-            report = ft_api.format_profit(data)
-            await safe_edit_message(msg, report, parse_mode='HTML')
-            logger.info(f"用户 {user_id} 查询利润")
-        else:
-            error_msg = f"❌ 查询失败\n\n{data.get('error', '未知错误')}"
-            await safe_edit_message(msg, error_msg)
+        if not profit_success:
+            await msg.edit_text(f"❌ 获取利润数据失败\n\n{profit_data.get('error', '未知错误')}" if lang == 'zh'
+                              else f"❌ Failed to get profit data\n\n{profit_data.get('error', 'Unknown error')}")
+            return
+
+        positions = positions_data if positions_success and isinstance(positions_data, list) else None
+        trades = trades_data.get('trades', []) if trades_success and isinstance(trades_data, dict) else None
+
+        from improved_performance_formatter import format_profit_improved
+        message = format_profit_improved(
+            profit_data,
+            trades_data=trades,
+            positions_data=positions,
+            lang=lang  # ⭐ 传入语言参数
+        )
+
+        await msg.edit_text(message, parse_mode='HTML')
+        logger.info(f"用户 {user_id} 查看利润统计（含持仓盈亏）")
 
     except Exception as e:
-        logger.error(f"查询利润时发生异常: {e}")
-        await safe_edit_message(msg, f"❌ 查询过程中发生错误: {str(e)}")
+        logger.error(f"获取利润数据异常: {e}")
+        await msg.edit_text(f"❌ 系统错误: {str(e)}")
 
 
 async def ft_performance(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """显示各币种性能(改进版)"""
+    """显示各币种性能（增强版 - 双语支持）"""
     user_id = update.message.from_user.id
 
     if not db.user_exists(user_id):
         await update.message.reply_text("❌ 请先注册!")
         return
 
-    msg = await update.message.reply_text("🔄 正在查询性能数据...")
+    user = db.get_user_by_telegram_id(user_id)
+    if not user.get('api_key'):
+        await update.message.reply_text("❌ 请先绑定API!\n\n使用 /bind 命令绑定")
+        return
+
+    # ⭐ 获取用户语言
+    lang = menu_system.get_user_language(user_id).value
+
+    msg = await update.message.reply_text("🔄 正在查询性能数据..." if lang == 'zh' else "🔄 Loading performance data...")
 
     try:
         success, data = ft_api.performance(user_id)
 
-        if success:
-            report = ft_api.format_performance(data, user_id)
-            await safe_edit_message(msg, report, parse_mode='HTML')
-            logger.info(f"用户 {user_id} 查询性能")
-        else:
-            error_msg = f"❌ 查询失败\n\n{data.get('error', '未知错误')}"
-            await safe_edit_message(msg, error_msg)
+        if not success:
+            error_msg = data.get('error', '未知错误' if lang == 'zh' else 'Unknown error')
+            await msg.edit_text(f"❌ {'查询失败' if lang == 'zh' else 'Query failed'}\n\n{error_msg}")
+            return
+
+        # ⭐ 使用支持双语的格式化函数
+        from improved_performance_formatter import format_performance_improved
+        message = format_performance_improved(data, lang=lang)
+
+        await msg.edit_text(message, parse_mode='HTML')
+        logger.info(f"用户 {user_id} 查询性能（语言: {lang}）")
 
     except Exception as e:
         logger.error(f"查询性能时发生异常: {e}")
-        await safe_edit_message(msg, f"❌ 查询过程中发生错误: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        await msg.edit_text(f"❌ {'查询过程中发生错误' if lang == 'zh' else 'Error occurred'}: {str(e)}")
 
 
 async def ft_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """显示当前持仓(改进版)"""
+    """查看当前持仓（增强版 - 显示方向和持仓时长）"""
     user_id = update.message.from_user.id
 
     if not db.user_exists(user_id):
         await update.message.reply_text("❌ 请先注册!")
         return
 
-    msg = await update.message.reply_text("🔄 正在查询持仓...")
+    user = db.get_user_by_telegram_id(user_id)
+    if not user.get('api_key'):
+        await update.message.reply_text("❌ 请先绑定API!\n\n使用 /bind 命令绑定")
+        return
+
+    # ⭐ 获取用户语言
+    lang = menu_system.get_user_language(user_id).value
+
+    msg = await update.message.reply_text("🔄 正在获取持仓数据..." if lang == 'zh' else "🔄 Loading positions...")
 
     try:
         success, data = ft_api.status(user_id)
 
-        if success:
-            report = ft_api.format_status(data)
-            await safe_edit_message(msg, report, parse_mode='HTML')
-            logger.info(f"用户 {user_id} 查询持仓")
-        else:
-            error_msg = f"❌ 查询失败\n\n{data.get('error', '未知错误')}"
-            await safe_edit_message(msg, error_msg)
+        if not success:
+            await msg.edit_text(f"❌ {data.get('error', '获取失败')}")
+            return
+
+        from improved_performance_formatter import format_status_improved
+        message = format_status_improved(data, lang=lang)  # ⭐ 传入语言参数
+
+        await msg.edit_text(message, parse_mode='HTML')
+        logger.info(f"用户 {user_id} 查看持仓")
 
     except Exception as e:
-        logger.error(f"查询持仓时发生异常: {e}")
-        await safe_edit_message(msg, f"❌ 查询过程中发生错误: {str(e)}")
+        logger.error(f"获取持仓数据异常: {e}")
+        await msg.edit_text(f"❌ 系统错误: {str(e)}")
 
 
 async def ft_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """显示账户余额(改进版)"""
+    """查看账户余额"""
     user_id = update.message.from_user.id
 
     if not db.user_exists(user_id):
         await update.message.reply_text("❌ 请先注册!")
         return
 
-    msg = await update.message.reply_text("🔄 正在查询余额...")
+    user = db.get_user_by_telegram_id(user_id)
+    if not user.get('api_key'):
+        await update.message.reply_text("❌ 请先绑定API!\n\n使用 /bind 命令绑定")
+        return
+
+    # ⭐ 获取用户语言
+    lang = menu_system.get_user_language(user_id).value
+
+    msg = await update.message.reply_text("🔄 正在获取余额数据..." if lang == 'zh' else "🔄 Loading balance...")
 
     try:
         success, data = ft_api.balance(user_id)
 
-        if success:
-            report = ft_api.format_balance(data)
-            await safe_edit_message(msg, report, parse_mode='HTML')
-            logger.info(f"用户 {user_id} 查询余额")
-        else:
-            error_msg = f"❌ 查询失败\n\n{data.get('error', '未知错误')}"
-            await safe_edit_message(msg, error_msg)
+        if not success:
+            await msg.edit_text(f"❌ {data.get('error', '获取失败')}")
+            return
+
+        # 可选：同时获取利润数据
+        profit_success, profit_data = ft_api.profit(user_id)
+        profit_info = profit_data if profit_success else None
+
+        from improved_performance_formatter import format_balance_improved
+        message = format_balance_improved(data, profit_info, lang=lang)  # ⭐ 传入语言参数
+
+        await msg.edit_text(message, parse_mode='HTML')
+        logger.info(f"用户 {user_id} 查看余额")
 
     except Exception as e:
-        logger.error(f"查询余额时发生异常: {e}")
-        await safe_edit_message(msg, f"❌ 查询过程中发生错误: {str(e)}")
+        logger.error(f"获取余额数据异常: {e}")
+        await msg.edit_text(f"❌ 系统错误: {str(e)}")
 
 
 async def ft_daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1842,16 +1904,21 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ========== ⭐ 消息处理器 (动态路由) ==========
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """处理所有文本消息(按钮点击)"""
+    """处理所有文本消息(仅处理按钮点击,不处理命令)"""
     user_id = update.message.from_user.id
     text = update.message.text
+
+    # ⭐ 忽略所有命令(以 / 开头的消息)
+    if text.startswith('/'):
+        return
 
     # 匹配按钮动作
     action = menu_system.match_button_action(user_id, text)
 
     if not action:
+        # ⭐ 如果不是按钮文本，记录日志便于调试
+        logger.debug(f"未识别的消息: {text} (用户 {user_id})")
         return
-
 
     # 路由到对应的处理函数
     handlers = {
@@ -1860,10 +1927,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "my_payment": my_payment_address,
         "my_subscription": subscription_info,
         "use_invite": use_invite_code,
-        "my_invite_menu": view_invite_menu,  # ⭐ 进入邀请码子菜单
-        "my_invite_stats": my_invite_stats,  # ⭐ 查看邀请统计
-        "my_invitees": my_invitees_list,  # ⭐ 查看邀请列表
-        "share_invite_code": share_invite_code,  # ⭐ 分享邀请码
+        "my_invite_menu": view_invite_menu,
+        "my_invite_stats": my_invite_stats,
+        "my_invitees": my_invitees_list,
+        "share_invite_code": share_invite_code,
         "start_trading": start_bot,
         "stop_trading": stop_bot,
         "view_status": view_status_menu,
@@ -1881,7 +1948,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     handler = handlers.get(action)
     if handler:
-        await handler(update, context)
+        try:
+            await handler(update, context)
+        except Exception as e:
+            logger.error(f"处理按钮 {action} 时出错: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        logger.warning(f"未找到处理器: {action}")
 
 
 # ========== 错误处理 ==========

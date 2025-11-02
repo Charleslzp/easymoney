@@ -400,48 +400,95 @@ class MenuSystem:
             """
 
     def match_button_action(self, user_id: int, text: str) -> Optional[str]:
-        """匹配按钮文本到动作"""
+        """匹配按钮文本到动作（支持中英文）"""
+        # 获取用户当前语言的菜单配置
         lang = self.get_user_language(user_id).value
         menu = self.menu_config[lang]["main_menu"]
         status_menu = self.menu_config[lang]["status_submenu"]
         config_menu = self.menu_config[lang]["config_submenu"]
-        invite_menu = self.menu_config[lang]["invite_submenu"]  # ⭐ 新增
+        invite_menu = self.menu_config[lang]["invite_submenu"]
 
+        # ⭐ 同时创建两种语言的映射表
+        zh_menu = self.menu_config['zh']["main_menu"]
+        en_menu = self.menu_config['en']["main_menu"]
+        zh_status = self.menu_config['zh']["status_submenu"]
+        en_status = self.menu_config['en']["status_submenu"]
+        zh_config = self.menu_config['zh']["config_submenu"]
+        en_config = self.menu_config['en']["config_submenu"]
+        zh_invite = self.menu_config['zh']["invite_submenu"]
+        en_invite = self.menu_config['en']["invite_submenu"]
+
+        # ⭐ 创建完整的双语映射表
         action_map = {
-            # 主菜单
-            menu["register"]: "register",
-            menu["bind_api"]: "bind_api",
-            menu["my_payment"]: "my_payment",
-            menu["my_subscription"]: "my_subscription",
-            menu["use_invite"]: "use_invite",
-            menu["my_invite"]: "my_invite_menu",  # ⭐ 进入邀请码子菜单
-            menu["start_trading"]: "start_trading",
-            menu["stop_trading"]: "stop_trading",
-            menu["view_status"]: "view_status",
-            menu["profit"]: "profit",
-            menu["performance"]: "performance",
-            menu["positions"]: "positions",
-            menu["balance"]: "balance",
-            menu["config_manage"]: "config_manage",
-            menu["help"]: "help",
-            menu["switch_lang"]: "switch_lang",
+            # 主菜单 - 中文
+            zh_menu["register"]: "register",
+            zh_menu["bind_api"]: "bind_api",
+            zh_menu["my_payment"]: "my_payment",
+            zh_menu["my_subscription"]: "my_subscription",
+            zh_menu["use_invite"]: "use_invite",
+            zh_menu["my_invite"]: "my_invite_menu",
+            zh_menu["start_trading"]: "start_trading",
+            zh_menu["stop_trading"]: "stop_trading",
+            zh_menu["view_status"]: "view_status",
+            zh_menu["profit"]: "profit",
+            zh_menu["performance"]: "performance",
+            zh_menu["positions"]: "positions",
+            zh_menu["balance"]: "balance",
+            zh_menu["config_manage"]: "config_manage",
+            zh_menu["help"]: "help",
+            zh_menu["switch_lang"]: "switch_lang",
 
-            # ⭐ 邀请码子菜单
-            invite_menu["my_stats"]: "my_invite_stats",
-            invite_menu["my_invitees"]: "my_invitees",
-            invite_menu["share_code"]: "share_invite_code",
-            invite_menu["back"]: "back_to_main",
+            # 主菜单 - 英文
+            en_menu["register"]: "register",
+            en_menu["bind_api"]: "bind_api",
+            en_menu["my_payment"]: "my_payment",
+            en_menu["my_subscription"]: "my_subscription",
+            en_menu["use_invite"]: "use_invite",
+            en_menu["my_invite"]: "my_invite_menu",
+            en_menu["start_trading"]: "start_trading",
+            en_menu["stop_trading"]: "stop_trading",
+            en_menu["view_status"]: "view_status",
+            en_menu["profit"]: "profit",
+            en_menu["performance"]: "performance",
+            en_menu["positions"]: "positions",
+            en_menu["balance"]: "balance",
+            en_menu["config_manage"]: "config_manage",
+            en_menu["help"]: "help",
+            en_menu["switch_lang"]: "switch_lang",
 
-            # 状态子菜单
-            status_menu["profit"]: "profit",
-            status_menu["positions"]: "positions",
-            status_menu["performance"]: "performance",
-            status_menu["back"]: "back_to_main",
+            # 邀请码子菜单 - 中文
+            zh_invite["my_stats"]: "my_invite_stats",
+            zh_invite["my_invitees"]: "my_invitees",
+            zh_invite["share_code"]: "share_invite_code",
+            zh_invite["back"]: "back_to_main",
 
-            # 配置子菜单
-            config_menu["modify_leverage"]: "modify_leverage",
-            config_menu["view_pairs"]: "view_pairs",
-            config_menu["back"]: "back_to_main"
+            # 邀请码子菜单 - 英文
+            en_invite["my_stats"]: "my_invite_stats",
+            en_invite["my_invitees"]: "my_invitees",
+            en_invite["share_code"]: "share_invite_code",
+            en_invite["back"]: "back_to_main",
+
+            # 状态子菜单 - 中文
+            zh_status["profit"]: "profit",
+            zh_status["positions"]: "positions",
+            zh_status["performance"]: "performance",
+            zh_status["back"]: "back_to_main",
+
+            # 状态子菜单 - 英文
+            en_status["profit"]: "profit",
+            en_status["positions"]: "positions",
+            en_status["performance"]: "performance",
+            en_status["back"]: "back_to_main",
+
+            # 配置子菜单 - 中文
+            zh_config["modify_leverage"]: "modify_leverage",
+            zh_config["view_pairs"]: "view_pairs",
+            zh_config["back"]: "back_to_main",
+
+            # 配置子菜单 - 英文
+            en_config["modify_leverage"]: "modify_leverage",
+            en_config["view_pairs"]: "view_pairs",
+            en_config["back"]: "back_to_main"
         }
 
         return action_map.get(text)

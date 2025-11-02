@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple, Optional, Any
 
 # 导入增强的性能格式化器
 try:
-    from improved_performance_formatter import PerformanceFormatter
+    from improved_performance_formatter  import  PerformanceFormatter
     HAS_ENHANCED_FORMATTER = True
 except ImportError:
     HAS_ENHANCED_FORMATTER = False
@@ -32,7 +32,7 @@ class FreqtradeAPIClient:
 
         # 初始化性能格式化器
         if HAS_ENHANCED_FORMATTER:
-            self.performance_formatter = PerformanceFormatter()
+            self.performance_formatter = PerformanceFormatter
             logger.info("已加载增强的性能格式化器")
         else:
             self.performance_formatter = None

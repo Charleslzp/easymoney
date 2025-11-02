@@ -315,7 +315,7 @@ class MyStrategy(IStrategy):
                     print(f'   盈亏: {profit:.2%}')
 
                     # 强制关闭交易
-                    trade.close(current_rate=current_rate)
+                    trade.close(current_rate)
 
                     # 记录到日志
                     try:
