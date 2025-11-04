@@ -228,12 +228,19 @@ def format_profit_improved(data: Dict, trades_data: Optional[List[Dict]] = None,
             total_profit_abs = 0.0
 
             for t in closed_trades:
-                profit = t.get('profit_abs') or 0
+                profit = (
+                        t.get('profit_abs') or
+                        t.get('profit_abs_total') or
+                        t.get('close_profit_abs') or
+                        0
+                )
+                if profit is None:
+                    profit = 0
                 total_profit_abs += profit
 
-                if profit > 0:
+                if profit > 0.0001:
                     winning += 1
-                elif profit < 0:
+                elif profit < -0.0001:
                     losing += 1
 
             if trade_count > 0:
@@ -329,15 +336,18 @@ def format_profit_improved(data: Dict, trades_data: Optional[List[Dict]] = None,
                 unrealized_emoji = "🟢" if unrealized_profit > 0 else "🔴" if unrealized_profit < 0 else "⚪"
                 report += f"{unrealized_emoji} 未实现利润: <b>{unrealized_profit:+.2f} USDT</b>\n"
                 report += f"平均收益率: <b>{unrealized_pct:+.2f}%</b>\n"
-                report += f"持仓数量: <b>{len(positions_data)}</b> 笔\n\n"
+                open_positions = [p for p in positions_data if p.get('is_open', False)]
+                report += f"持仓数量: <b>{len(open_positions)}</b> 笔\n\n"
                 report += f"<b>💰 总盈亏（含持仓）</b>\n"
                 report += f"{total_emoji} 总计: <b>{total_profit:+.2f} USDT</b>\n\n"
             else:
                 report += f"<b>📊 Open Position P/L</b>\n"
                 unrealized_emoji = "🟢" if unrealized_profit > 0 else "🔴" if unrealized_profit < 0 else "⚪"
                 report += f"{unrealized_emoji} Unrealized Profit: <b>{unrealized_profit:+.2f} USDT</b>\n"
+
                 report += f"Avg Return: <b>{unrealized_pct:+.2f}%</b>\n"
-                report += f"Open Positions: <b>{len(positions_data)}</b>\n\n"
+                open_positions = [p for p in positions_data if p.get('is_open', False)]
+                report += f"Open Positions: <b>{len(open_positions)}</b>\n\n"
                 report += f"<b>💰 Total P/L (incl. open)</b>\n"
                 report += f"{total_emoji} Total: <b>{total_profit:+.2f} USDT</b>\n\n"
         except Exception as e:

@@ -1,4 +1,3 @@
-
 {
     "$schema": "https://schema.freqtrade.io/schema.json",
     "timeframe": "15m",
@@ -21,8 +20,8 @@
     "use_exit_signal": true,
     "position_adjustment_enable": true,
     "unfilledtimeout": {
-        "entry": 10,
-        "exit": 10,
+        "entry": 1,
+        "exit": 3,
         "exit_timeout_count": 0,
         "unit": "minutes"
     },
@@ -36,29 +35,36 @@
             "bids_to_ask_delta": 1
         }
     },
-    "exit_pricing":{
+    "exit_pricing": {
         "price_side": "other",
         "use_order_book": true,
         "order_book_top": 1
     },
     "exchange": {
         "name": "binance",
-
-        "key": " xxx ",
-        "secret": " xxx",
+        "key": "xxx",
+        "secret": "xxx",
         "ccxt_config": {
             "apiKey": "xxx",
             "secret": "xxx"
-
-
         },
-
         "pair_whitelist": [
-    "AAVE/USDT:USDT", "ADA/USDT:USDT", "AVAX/USDT:USDT", "BNB/USDT:USDT",
-    "BTC/USDT:USDT", "DOGE/USDT:USDT", "ETH/USDT:USDT", "ICP/USDT:USDT",
-    "LINK/USDT:USDT", "LTC/USDT:USDT", "SOL/USDT:USDT", "SUI/USDT:USDT",
-    "TRB/USDT:USDT", "TRX/USDT:USDT",  "XRP/USDT:USDT"
-],
+            "AAVE/USDT:USDT",
+            "ADA/USDT:USDT",
+            "AVAX/USDT:USDT",
+            "BNB/USDT:USDT",
+            "BTC/USDT:USDT",
+            "DOGE/USDT:USDT",
+            "ETH/USDT:USDT",
+            "ICP/USDT:USDT",
+            "LINK/USDT:USDT",
+            "LTC/USDT:USDT",
+            "SOL/USDT:USDT",
+            "SUI/USDT:USDT",
+            "TRB/USDT:USDT",
+            "TRX/USDT:USDT",
+            "XRP/USDT:USDT"
+        ],
         "pair_blacklist": [
             "BNB/.*"
         ]
@@ -68,7 +74,6 @@
             "method": "StaticPairList"
         }
     ],
-
     "api_server": {
         "enabled": true,
         "listen_ip_address": "0.0.0.0",
@@ -86,5 +91,15 @@
     "force_entry_enable": false,
     "internals": {
         "process_throttle_secs": 30
+    },
+    "order_types": {
+        "entry": "limit",
+        "exit": "limit",
+        "stoploss": "market",
+        "stoploss_on_exchange": false
+    },
+    "order_time_in_force": {
+        "entry": "GTC",
+        "exit": "GTC"
     }
 }

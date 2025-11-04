@@ -176,12 +176,22 @@ class SwarmManager:
             print(f"[INFO] 🌐 API 端口映射: 宿主机 {api_port} -> 容器 8080")
             print(f"[INFO] 📡 API 访问地址: http://localhost:{api_port}")
 
+            subscription_info = self.db.get_user_subscription(user_id)
+            if subscription_info:
+                max_capital = subscription_info.get('max_capital', 0)
+                plan_name = subscription_info.get('plan_name', '未知套餐')
+                print(f"[INFO] 💰 用户 {user_id} 最大可操作金额: {max_capital} USDT ({plan_name})")
+            else:
+                print(f"[WARN] ⚠️  用户 {user_id} 无有效订阅，使用默认限制")
+                max_capital = 1000  # 默认体验额度
+
             # ⭐ 通过环境变量传递密钥
             env_vars = [
                 'FREQTRADE__STRATEGY=MyStrategy',
                 'PYTHONUNBUFFERED=1',
                 f'FT_API_KEY={api_key}',
                 f'FT_API_SECRET={secret}',
+                f'FT_MAX_CAPITAL={max_capital}',  
             ]
 
             # ⭐ 使用 jq 的启动脚本
@@ -195,6 +205,8 @@ echo "======================================"
 # 读取环境变量
 API_KEY="${FT_API_KEY}"
 API_SECRET="${FT_API_SECRET}"
+MAX_CAPITAL="${FT_MAX_CAPITAL}"  
+
 
 # 验证密钥存在
 if [ -z "$API_KEY" ] || [ -z "$API_SECRET" ]; then
@@ -207,6 +219,7 @@ fi
 echo "✅ API credentials loaded from environment"
 echo "   API Key: ${API_KEY:0:8}...${API_KEY: -4}"
 echo "   Secret:  ${API_SECRET:0:8}...${API_SECRET: -4}"
+echo "   💰 Max Capital: $MAX_CAPITAL USDT"  # ⭐ 新增：显示资金限制
 
 # 配置文件路径
 CONFIG_TEMPLATE="/freqtrade/custom_config/config.json"
