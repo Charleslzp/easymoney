@@ -30,14 +30,18 @@ RUN pip install --no-cache-dir \
     /tmp/easymoney-0.1.0-py3-none-any.whl \
     && rm /tmp/*.whl
 
-# 安装其他依赖
+# ========== 安装其他依赖（分开安装避免索引冲突）==========
+# 先安装 PyPI 的包
 RUN pip install --no-cache-dir \
-    pandas-ta==0.3.14b \
-    scikit-learn==1.3.2 \
-    torch --index-url https://download.pytorch.org/whl/cpu \
+    pandas-ta \
+    scikit-learn \
     ta-lib \
     requests \
     websocket-client
+
+# 再安装 PyTorch CPU 版本
+RUN pip install --no-cache-dir \
+    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # ========== 创建目录结构 ==========
 RUN mkdir -p /freqtrade/user_data/strategies \
