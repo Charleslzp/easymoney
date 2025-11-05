@@ -13,6 +13,8 @@ class ConfigManager:
     """配置文件管理类 - 安全版本"""
 
     def __init__(self, template_dir: str = "work_dir"):
+        self.base_dir = "/mnt/freqtrade-data/user_data"
+        self.template_file = "work_dir/config.json"
         self.template_dir = template_dir
         self.template_config_path = os.path.join(template_dir, "config.json")
         self.strategy_path = os.path.join(template_dir, "MyStrategy.py")
