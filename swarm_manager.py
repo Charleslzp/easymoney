@@ -101,8 +101,12 @@ class SwarmManager:
             # 检查服务是否已存在
             try:
                 existing_service = self.client.services.get(service_name)
-                return False, f"服务已存在: {service_name}"
+                print(f"[INFO] 发现已存在的服务 {service_name}，正在清理...")
+                existing_service.remove()
+                print(f"[INFO] 服务已清理，等待删除完成...")
+                time.sleep(2)  # 等待服务完全删除
             except docker.errors.NotFound:
+                print(f"[INFO] 服务不存在，可以安全创建")
                 pass
 
             # 从数据库获取 API 密钥

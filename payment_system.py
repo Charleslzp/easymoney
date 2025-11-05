@@ -238,6 +238,48 @@ class PaymentSystem:
 
         return None
 
+    def auto_subscribe_if_possible(self, user_id: int) -> Tuple[bool, str]:
+        """尝试自动订阅（支持灵活订阅）"""
+        balance = self.db.get_user_balance(user_id)
+
+        if balance < 100:
+            return False, "余额不足100 USDT"
+
+        subscription = self.db.get_user_subscription(user_id)
+        if subscription:
+            is_valid, _ = self.db.is_subscription_valid(user_id)
+            if is_valid:
+                return False, "已有有效订阅"
+
+        try:
+            # 优先使用灵活订阅
+            if hasattr(self.db, 'create_subscription_flexible'):
+                subscription_amount = balance * 0.8
+                if subscription_amount < 100:
+                    subscription_amount = balance
+
+                success, message = self.db.create_subscription_flexible(
+                    user_id, subscription_amount, days=30
+                )
+
+                if success:
+                    logger.info(f"[自动订阅] ✅ {message}")
+                    return True, message
+
+            # 回退到传统方式
+            plans = self.db.get_all_plans()
+            for plan in sorted(plans, key=lambda p: p.get('standard_capital', p.get('max_capital', 0)), reverse=True):
+                min_payment = plan.get('min_payment', plan.get('price_30days', 999999))
+                if balance >= min_payment:
+                    success = self.db.create_subscription(user_id, plan['id'], days=30)
+                    if success:
+                        return True, f"自动订阅: {plan['plan_name']}"
+
+            return False, "余额不足"
+        except Exception as e:
+            logger.error(f"[自动订阅] ❌ {e}")
+            return False, str(e)
+
     def process_new_recharge(self, recharge_info: dict) -> bool:
         """
         处理新充值 - 包含邀请码折扣和邀请奖励

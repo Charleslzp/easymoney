@@ -35,6 +35,10 @@ from freqtrade_api_client import FreqtradeAPIClient
 from freqtrade_commander import FreqtradeCommander
 from payment_system import PaymentSystem
 from menu_system import MenuSystem, UserStatus  # ⭐ 新增菜单系统
+from bot_subscription_commands import (
+    register_flexible_subscription_commands,
+    auto_subscribe_smart
+)
 
 # 配置日志
 logging.basicConfig(
@@ -1175,37 +1179,38 @@ async def view_plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     plans = db.get_all_plans()
-
     lang = menu_system.get_user_language(user_id).value
 
     if lang == "zh":
         message = "💎 <b>订阅套餐</b>\n" + "=" * 40 + "\n\n"
 
         for plan in plans:
-            message += f"<b>{plan['name']}</b>\n"
-            message += f"💰 价格: <b>{plan['price']:.0f} USDT/{plan['duration_days']}天</b>\n"
-            message += f"📊 最大资金: <b>{plan['max_capital']:,.0f} USDT</b>\n"
-            message += f"⏰ 有效期: <b>{plan['duration_days']} 天</b>\n"
+            message += f"<b>{plan['plan_name']}</b>\n"
+            message += f"💰 月费率: <b>{plan['monthly_rate']:.3f} /月</b>\n"
+            message += f"📊 标准资金: <b>{plan['standard_capital']:,.0f} USDT</b>\n"
+            message += f"💳 最低充值: <b>{plan['min_payment']:,.0f} USDT</b>\n"
+            message += f"📝 {plan['description']}\n"
             message += "─" * 40 + "\n\n"
 
         message += "💡 <b>说明:</b>\n"
         message += "• 充值后系统自动订阅对应套餐\n"
-        message += "• 最大资金限制单笔操作金额\n"
+        message += "• 标准资金为建议操作金额\n"
         message += "• 订阅期内可随时启停交易\n\n"
         message += "使用 /my_address 查看充值地址"
     else:
         message = "💎 <b>Subscription Plans</b>\n" + "=" * 40 + "\n\n"
 
         for plan in plans:
-            message += f"<b>{plan['name']}</b>\n"
-            message += f"💰 Price: <b>{plan['price']:.0f} USDT/{plan['duration_days']}days</b>\n"
-            message += f"📊 Max Capital: <b>{plan['max_capital']:,.0f} USDT</b>\n"
-            message += f"⏰ Duration: <b>{plan['duration_days']} days</b>\n"
+            message += f"<b>{plan['plan_name']}</b>\n"
+            message += f"💰 Monthly Rate: <b>{plan['monthly_rate']:.2%} USDT/month</b>\n"
+            message += f"📊 Standard Capital: <b>{plan['standard_capital']:,.0f} USDT</b>\n"
+            message += f"💳 Min Payment: <b>{plan['min_payment']:,.0f} USDT</b>\n"
+            message += f"📝 {plan['description']}\n"
             message += "─" * 40 + "\n\n"
 
         message += "💡 <b>Notes:</b>\n"
         message += "• Auto-subscribe after recharge\n"
-        message += "• Max capital limits per trade\n"
+        message += "• Standard capital is recommended amount\n"
         message += "• Start/stop trading anytime\n\n"
         message += "Use /my_address for recharge"
 
@@ -2035,8 +2040,8 @@ def main():
     # ========== ⭐ 支付和订阅命令 ==========
     app.add_handler(CommandHandler("my_address", my_payment_address))
     app.add_handler(CommandHandler("recharge", my_payment_address))  # 别名
-    app.add_handler(CommandHandler("my_subscription", subscription_info))
-    app.add_handler(CommandHandler("plans", view_plans))
+    #app.add_handler(CommandHandler("my_subscription", subscription_info))
+    #app.add_handler(CommandHandler("plans", view_plans))
     app.add_handler(CommandHandler("recharge_history", recharge_records))
 
     # ========== Freqtrade REST API 命令 ==========
@@ -2068,6 +2073,8 @@ def main():
 
     logger.info("✅ 邀请码系统已加载")
 
+
+
     # ========== 错误处理 ==========
     app.add_error_handler(error_handler)
 
@@ -2079,6 +2086,7 @@ def main():
     logger.info("✅ Docker 命令执行器已加载")
     logger.info("✅ 多语言菜单系统已加载")  # ⭐ 新增
     logger.info("=" * 50)
+    register_flexible_subscription_commands(app,menu_system)
 
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
