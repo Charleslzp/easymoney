@@ -69,7 +69,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/* \
   && pip install --upgrade pip wheel
 
-COPY --chown=ftuser:ftuser requirements.txt requirements-hyperopt.txt /freqtrade/
+#COPY --chown=ftuser:ftuser requirements.txt requirements-hyperopt.txt /freqtrade/
 USER ftuser
 
 # ⭐ 分步安装依赖
@@ -92,7 +92,7 @@ RUN pip install --user --no-cache-dir huggingface-hub packaging filelock tqdm sa
 RUN pip install --user --no-cache-dir TA-Lib==0.6.4
 
 # 安装 hyperopt 依赖
-RUN pip install --user --no-cache-dir -r requirements-hyperopt.txt
+#RUN pip install --user --no-cache-dir -r requirements-hyperopt.txt
 
 # ⭐ 关键：设置 NumPy 兼容模式环境变量
 ENV NPY_PROMOTION_STATE=weak
