@@ -58,8 +58,8 @@ COPY DepthBasedPositionManager.py /freqtrade/user_data/strategies/
 COPY __init__.py /freqtrade/user_data/strategies/
 
 # ========== 复制模型文件 ==========
-COPY best_long.pth /freqtrade/user_data/models/
-COPY best_short.pth /freqtrade/user_data/models/
+COPY best_long.pth /freqtrade/user_data/strategies/
+COPY best_short.pth /freqtrade/user_data/strategies/
 
 # ========== 设置权限 ==========
 RUN chown -R ftuser:ftuser /freqtrade/user_data
