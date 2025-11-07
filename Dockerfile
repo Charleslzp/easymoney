@@ -55,7 +55,7 @@ COPY MyStrategy.py /freqtrade/user_data/strategies/
 COPY trend_client.py /freqtrade/user_data/strategies/
 COPY record.py /freqtrade/user_data/strategies/
 COPY DepthBasedPositionManager.py /freqtrade/user_data/strategies/
-COPY __init__.py /freqtrade/user_data/strategies/
+#COPY __init__.py /freqtrade/user_data/strategies/
 
 # ========== 复制模型文件 ==========
 COPY best_long.pth /freqtrade/user_data/strategies/
