@@ -47,6 +47,7 @@ class ConfigManager:
     def create_user_directory(self, user_id: int) -> bool:
         """创建用户目录结构"""
         user_dir = self._get_user_dir(user_id)
+        print(f'dir is {user_dir}')
 
         try:
             os.makedirs(user_dir, exist_ok=True)
