@@ -17,7 +17,7 @@ class FreqtradeAPIClient:
 
     def __init__(self):
         """初始化 API 客户端"""
-        self.timeout = 10
+        self.timeout = 60
         # API 认证信息
         self.username = "pythonuser"
         self.password = "lzplzp123123"
