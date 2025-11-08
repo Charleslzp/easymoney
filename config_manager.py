@@ -18,7 +18,7 @@ class ConfigManager:
         self.template_dir = template_dir
         self.template_config_path = os.path.join(template_dir, "config.json")
         self.strategy_path = os.path.join(template_dir, "MyStrategy.py")
-        self.user_data_base = "user_data"
+        self.user_data_base = "/mnt/freqtrade-data/user_data_manager"
 
     def _get_user_dir(self, user_id: int) -> str:
         """获取用户目录路径"""
