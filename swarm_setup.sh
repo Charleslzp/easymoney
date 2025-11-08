@@ -49,8 +49,29 @@ echo "步骤 2/5: 初始化Docker Swarm..."
 if docker info 2>/dev/null | grep -q "Swarm: active"; then
     echo -e "${GREEN}✓${NC} Swarm已经初始化"
 else
-    echo "正在初始化Swarm..."
-    docker swarm init
+    # ⭐ 获取所有 IP 地址
+    echo "检测到以下 IP 地址:"
+    ip addr show eth0 | grep "inet " | awk '{print $2}' | cut -d/ -f1 | nl
+
+    echo ""
+    echo "请选择用于 Swarm 广播的 IP 地址:"
+    echo "1) 128.199.173.131 (公网IP - 推荐)"
+    echo "2) 10.15.0.6 (内网IP)"
+    echo ""
+    read -p "请输入选项 (1 或 2，默认 1): " ip_choice
+
+    # 默认使用选项 1
+    ip_choice=${ip_choice:-1}
+
+    if [ "$ip_choice" = "1" ]; then
+        ADVERTISE_ADDR="128.199.173.131"
+    else
+        ADVERTISE_ADDR="10.15.0.6"
+    fi
+
+    echo "正在使用 IP: $ADVERTISE_ADDR 初始化Swarm..."
+    docker swarm init --advertise-addr $ADVERTISE_ADDR
+
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓${NC} Swarm初始化成功"
     else
