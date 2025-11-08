@@ -89,6 +89,8 @@ class Database:
         conn = self._get_connection()
         cursor = conn.cursor()
 
+        self._create_invite_code_usage_table(cursor)
+
         # 1. 用户表
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
@@ -366,17 +368,91 @@ class Database:
             logger.error(f"插入用户失败: {e}")
             return None
 
-    def update_service_info(self, user_id: int, service_id: str, service_name: str):
-        """更新用户的服务信息"""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            UPDATE users 
-            SET service_id = ?, service_name = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE user_id = ?
-        ''', (service_id, service_name, user_id))
-        conn.commit()
-        conn.close()
+    def get_user_node_info(self, user_id: int) -> Optional[Dict]:
+        """
+        获取用户服务的节点信息
+
+        Args:
+            user_id: 用户ID
+
+        Returns:
+            包含 node_ip 和 api_port 的字典
+        """
+        try:
+            conn = self._get_connection()
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                SELECT node_ip, api_port 
+                FROM users 
+                WHERE user_id = ?
+            ''', (user_id,))
+
+            row = cursor.fetchone()
+            conn.close()
+
+            if row:
+                return {
+                    'node_ip': row['node_ip'],
+                    'api_port': row['api_port']
+                }
+
+            return None
+
+        except Exception as e:
+            print(f"[ERROR] 获取节点信息失败: {e}")
+            return None
+
+    def update_service_info(self, user_id: int, service_id: str, service_name: str,
+                            node_ip: str = None, api_port: int = None):
+        """
+        更新用户服务信息
+
+        Args:
+            user_id: 用户ID
+            service_id: Docker服务ID
+            service_name: 服务名称
+            node_ip: 节点IP地址
+            api_port: API端口
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+
+            # 检查表是否有 node_ip 和 api_port 列,如果没有则添加
+            cursor.execute("PRAGMA table_info(users)")
+            columns = [column[1] for column in cursor.fetchall()]
+
+            if 'node_ip' not in columns:
+                cursor.execute("ALTER TABLE users ADD COLUMN node_ip TEXT")
+                print("[INFO] 添加 node_ip 列到数据库")
+
+            if 'api_port' not in columns:
+                cursor.execute("ALTER TABLE users ADD COLUMN api_port INTEGER")
+                print("[INFO] 添加 api_port 列到数据库")
+
+            # 更新服务信息
+            cursor.execute('''
+                UPDATE users 
+                SET service_id = ?, 
+                    service_name = ?,
+                    node_ip = ?,
+                    api_port = ?
+                WHERE telegram_id = ?
+            ''', (service_id, service_name, node_ip, api_port, user_id))
+
+            conn.commit()
+            conn.close()
+
+            print(f"[INFO] 用户 {user_id} 服务信息已更新")
+            print(f"       - 服务ID: {service_id}")
+            print(f"       - 服务名: {service_name}")
+            print(f"       - 节点IP: {node_ip}")
+            print(f"       - API端口: {api_port}")
+
+        except Exception as e:
+            print(f"[ERROR] 更新服务信息失败: {e}")
     def clear_service_info(self, user_id: int):
         """清除用户的服务信息"""
         conn = self._get_connection()

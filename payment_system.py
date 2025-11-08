@@ -23,36 +23,47 @@ logger = logging.getLogger(__name__)
 class PaymentSystem:
     """支付系统 - HD钱包 + 自动监控"""
 
-    def __init__(self, master_private_key: str = None, trongrid_api_key: str = None):
+    def __init__(self, master_private_key: str = None, trongrid_api_key: str = None, network: str = 'mainnet'):
         """
         初始化支付系统
 
         Args:
             master_private_key: 主私钥（用于生成子地址）
             trongrid_api_key: TronGrid API Key
+            network: 网络类型 ('mainnet', 'nile', 'shasta')
         """
         self.db = Database()
 
+        # 网络配置
+        self.network = network
+
         # TronGrid API
         self.trongrid_api_key = trongrid_api_key or os.getenv("TRONGRID_API_KEY", "")
-        self.trongrid_url = "https://api.trongrid.io"
 
-        # USDT TRC20 合约地址
-        self.usdt_contract = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+        # 根据网络选择 API URL 和合约地址
+        if network == 'nile':  # Nile 测试网
+            self.trongrid_url = "https://nile.trongrid.io"
+            self.usdt_contract = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"  # Nile测试网USDT
+        elif network == 'shasta':  # Shasta 测试网
+            self.trongrid_url = "https://api.shasta.trongrid.io"
+            self.usdt_contract = "TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs"  # Shasta测试网USDT
+        else:  # 主网
+            self.trongrid_url = "https://api.trongrid.io"
+            self.usdt_contract = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"  # 主网USDT
 
-        # 主钱包私钥（用于生成子地址）
+        # 主钱包私钥
         self.master_private_key = master_private_key or os.getenv(
             "MASTER_PRIVATE_KEY",
             self._generate_master_key()
         )
 
         # Tron 客户端
-        self.tron = Tron(network='mainnet')
+        self.tron = Tron(network=network)
 
         # 监控间隔（秒）
         self.monitor_interval = 30
 
-        logger.info("[INFO] 支付系统初始化完成")
+        logger.info(f"[INFO] 支付系统初始化完成 - 网络: {network}")
 
     def _generate_master_key(self) -> str:
         """生成主私钥（首次运行时）"""
@@ -154,13 +165,27 @@ class PaymentSystem:
                 'contract_address': self.usdt_contract
             }
 
+            print("=" * 60)
+            print("🔍 调试信息：")
+            print(f"URL: {url}")
+            print(f"Contract: {self.usdt_contract}")
+            print(f"Headers: {headers}")
+            print(f"Params: {params}")
+            from urllib.parse import urlencode
+            full_url = f"{url}?{urlencode(params)}"
+            print(f"完整URL: {full_url}")
+            print("=" * 60)
+
             response = requests.get(url, headers=headers, params=params, timeout=10)
+            print(f"状态码: {response.status_code}")
+            print(f"响应: {response.json()}")
 
             if response.status_code != 200:
                 logger.error(f"[ERROR] 查询余额失败: {response.text}")
                 return 0.0, []
 
             data = response.json()
+            logger.error(f"[ERROR] 查询余额失败: {response}")
             transactions = data.get('data', [])
 
             # 计算余额（接收的金额）
@@ -517,15 +542,16 @@ class PaymentSystem:
         return subscription['max_capital']
 
 
-def run_payment_system(master_private_key: str = None, trongrid_api_key: str = None):
+def run_payment_system(master_private_key: str = None, trongrid_api_key: str = None, network: str = 'mainnet'):
     """
     运行支付系统
 
     Args:
         master_private_key: 主私钥
         trongrid_api_key: TronGrid API Key
+        network: 网络类型 ('mainnet', 'nile', 'shasta')
     """
-    payment_system = PaymentSystem(master_private_key, trongrid_api_key)
+    payment_system = PaymentSystem(master_private_key, trongrid_api_key, network)
 
     try:
         asyncio.run(payment_system.start())
@@ -538,6 +564,7 @@ if __name__ == "__main__":
 
     MASTER_PRIVATE_KEY = os.getenv("MASTER_PRIVATE_KEY")
     TRONGRID_API_KEY = os.getenv("TRONGRID_API_KEY")
+    NETWORK = os.getenv("TRON_NETWORK", "nile")  # 默认使用测试网
 
     if not MASTER_PRIVATE_KEY:
         print("=" * 60)
@@ -548,7 +575,7 @@ if __name__ == "__main__":
         print("")
 
     print("=" * 60)
-    print("💰 Freqtrade 支付系统")
+    print(f"💰 Freqtrade 支付系统 - {NETWORK.upper()}")
     print("=" * 60)
     print("")
     print("功能：")
@@ -557,10 +584,11 @@ if __name__ == "__main__":
     print("  ✅ 自动确认并增加余额")
     print("  ✅ 自动订阅合适的套餐")
     print("")
+    print(f"当前网络: {NETWORK}")
     print("监控间隔: 30秒")
     print("")
     print("按 Ctrl+C 停止")
     print("=" * 60)
     print("")
 
-    run_payment_system(MASTER_PRIVATE_KEY, TRONGRID_API_KEY)
+    run_payment_system(MASTER_PRIVATE_KEY, TRONGRID_API_KEY, NETWORK)

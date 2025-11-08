@@ -102,6 +102,22 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+from datetime import datetime, timezone
+
+
+# 辅助函数：统一获取 UTC 时间字符串
+def get_utc_time_str(dt: datetime = None) -> str:
+    """获取 UTC 时间字符串"""
+    if dt is None:
+        return datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+
+    if dt.tzinfo is None:
+        # 假设是 UTC
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
+    else:
+        # 转换为 UTC
+        return dt.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+
 
 def extract_currency(input_string):
     """提取货币单位"""
@@ -703,7 +719,7 @@ class MyStrategy(IStrategy):
                             trade.amount,
                             current_rate,
                             profit,
-                            datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                            get_utc_time_str()
                         )
                     except Exception as log_error:
                         print(f'   ⚠️  日志记录失败: {log_error}')
@@ -975,7 +991,11 @@ class MyStrategy(IStrategy):
                             current_time: datetime, **kwargs) -> bool:
         """⭐ 检查买入订单超时"""
         if order.side == 'buy' and order.status == 'open':
-            order_age = (current_time - order.order_date).total_seconds()
+            # 🔧 统一转换为时区无关的 datetime（移除时区信息）
+            current_time_naive = current_time.replace(tzinfo=None) if current_time.tzinfo else current_time
+            order_date_naive = order.order_date.replace(tzinfo=None) if order.order_date.tzinfo else order.order_date
+
+            order_age = (current_time_naive - order_date_naive).total_seconds()
 
             if not hasattr(trade, 'entry_retry_count'):
                 trade.entry_retry_count = 0
@@ -1028,7 +1048,7 @@ class MyStrategy(IStrategy):
                 dir,
                 trade.amount,
                 trade.open_rate,
-                current_time.strftime('%Y-%m-%d %H:%M:%S')
+                get_utc_time_str(current_time)
             )
         else:
             if hasattr(trade, 'exit_retry_count'):
@@ -1065,7 +1085,7 @@ class MyStrategy(IStrategy):
                         trade.amount,
                         trade.close_rate,
                         profit,
-                        current_time.strftime('%Y-%m-%d %H:%M:%S')
+                        get_utc_time_str()
                     )
                     return "close"
 
@@ -1076,7 +1096,7 @@ class MyStrategy(IStrategy):
                         trade.amount,
                         trade.close_rate,
                         profit,
-                        current_time.strftime('%Y-%m-%d %H:%M:%S')
+                        get_utc_time_str()
                     )
                     return "close"
 

@@ -82,6 +82,7 @@ def update_user_trading_status(user_id: int, is_trading: bool):
 async def safe_edit_message(msg, text: str, **kwargs):
     """安全地编辑消息，处理可能的异常"""
     try:
+
         await msg.edit_text(text, **kwargs)
         return True
     except Exception as e:
@@ -917,7 +918,10 @@ async def bind(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "• Click '▶️ Start Trading' to begin"
             )
 
-        await msg.edit_text(success_msg, reply_markup=keyboard, parse_mode='HTML')
+        await msg.edit_text(success_msg, parse_mode='HTML')
+        main_menu_text = "📋 主菜单已更新" if lang == "zh" else "📋 Main menu updated"
+        await update.message.reply_text(main_menu_text, reply_markup=keyboard)
+
         logger.info(f"用户 {user_id} API绑定成功, API端口: {api_port}")
     else:
         await msg.edit_text(
