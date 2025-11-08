@@ -56,7 +56,10 @@ db = Database()
 config_manager = ConfigManager()
 swarm_manager = SwarmManager()
 rate_limiter = RateLimiter(max_requests=20, time_window=60)
-payment_system = PaymentSystem()
+MASTER_PRIVATE_KEY = os.getenv("MASTER_PRIVATE_KEY")
+TRONGRID_API_KEY = os.getenv("TRONGRID_API_KEY")
+NETWORK = os.getenv("TRON_NETWORK", "nile")  # 默
+payment_system = PaymentSystem(MASTER_PRIVATE_KEY,TRONGRID_API_KEY,NETWORK)
 menu_system = MenuSystem()  # ⭐ 初始化菜单系统
 
 # 初始化 Freqtrade 客户端
