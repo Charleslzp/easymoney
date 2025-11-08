@@ -93,8 +93,9 @@ class FreqtradeAPIClient:
             return False, {"error": "无法获取API地址"}
 
         url = f"{base_url}/{endpoint}"
-        print(f'final url is {url}')
+
         auth = self._get_auth()
+        print(f'final url is {url} aus is {auth}')
 
         try:
             if method == "GET":
