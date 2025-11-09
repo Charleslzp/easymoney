@@ -1284,6 +1284,8 @@ async def start_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """启动交易机器人(添加订阅检查)"""
     user_id = update.message.from_user.id
 
+    logger.info(f"用户 {user_id} 准备启动服务")
+
     if not db.user_exists(user_id):
         await update.message.reply_text("❌ 请先注册!")
         return
