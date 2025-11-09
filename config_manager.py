@@ -8,6 +8,23 @@ import os
 import shutil
 import tempfile
 from typing import Optional, Dict, Any
+import socket
+
+
+def get_local_ip():
+    """获取本地IP地址"""
+    try:
+        # 创建一个UDP socket连接到外部地址（不会真的发送数据）
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # 连接到Google的DNS服务器（8.8.8.8）
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        return local_ip
+    except Exception as e:
+        print(f"获取本地IP失败: {e}")
+        # 返回默认值
+        return "127.0.0.1"
 
 class ConfigManager:
     """配置文件管理类 - 安全版本"""
@@ -86,6 +103,8 @@ class ConfigManager:
             with open(self.template_config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
 
+            ip_addr = get_local_ip()
+
             # ⭐ 关键修改：不保存真实的 API 密钥
             # 使用占位符，运行时动态替换
             if 'exchange' not in config:
@@ -99,6 +118,7 @@ class ConfigManager:
             config['user_data_dir'] = '/freqtrade/user_data'
             config['strategy_path'] = '/freqtrade/user_data/strategies'
             config['bot_name'] = f"freqtrade_{user_id}"
+            config['trend_service_url'] = f"http://{ip_addr}:5000"
             config['logfile'] = '/freqtrade/custom_logs/freqtrade.log'
 
             # API Server 配置

@@ -12,6 +12,22 @@ from database import Database
 from config_manager import ConfigManager
 
 
+def get_local_ip():
+    """获取本地IP地址"""
+    try:
+        # 创建一个UDP socket连接到外部地址（不会真的发送数据）
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # 连接到Google的DNS服务器（8.8.8.8）
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        return local_ip
+    except Exception as e:
+        print(f"获取本地IP失败: {e}")
+        # 返回默认值
+        return "127.0.0.1"
+
+
 class SwarmManager:
     """Docker Swarm 管理类 - 完整实现版"""
 
@@ -401,6 +417,7 @@ class SwarmManager:
                     }
                 ]
             )
+            local_ip = get_local_ip()
 
             subscription = self.db.get_user_subscription(user_id)
             if subscription:
@@ -409,6 +426,7 @@ class SwarmManager:
                     f'API_KEY={api_key}',
                     f'API_SECRET={secret}',
                     f'FT_MAX_CAPITAL={max_capital}',
+                    f'REMOTE_IP={local_ip}',
 
                     'CONFIG_TEMPLATE=/freqtrade/custom_config/config.json',
                     'CONFIG_RUNTIME=/freqtrade/runtime_config.json'
@@ -418,6 +436,7 @@ class SwarmManager:
                 env_vars = [
                     f'API_KEY={api_key}',
                     f'API_SECRET={secret}',
+                    f'REMOTE_IP={local_ip}',
 
                     'CONFIG_TEMPLATE=/freqtrade/custom_config/config.json',
                     'CONFIG_RUNTIME=/freqtrade/runtime_config.json'
@@ -437,6 +456,7 @@ echo "======================================"
 API_KEY="${API_KEY}"
 API_SECRET="${API_SECRET}"
 FT_MAX_CAPITAL="${FT_MAX_CAPITAL}"
+REMOTE_IP="${REMOTE_IP}"
 CONFIG_TEMPLATE="${CONFIG_TEMPLATE:-/freqtrade/custom_config/config.json}"
 CONFIG_RUNTIME="${CONFIG_RUNTIME:-/freqtrade/runtime_config.json}"
 
@@ -447,6 +467,11 @@ fi
 
 if [ -z "FT_MAX_CAPITAL" ] ; then
     echo "❌ FT_MAX_CAPITAL not set"
+    exit 1
+fi
+
+if [ -z "REMOTE_IP" ] ; then
+    echo "❌ REMOTE_IP not set"
     exit 1
 fi
 
