@@ -466,88 +466,96 @@ class SwarmManager:
 
             # 10. jq 注入启动脚本
             entrypoint_script = '''#!/bin/bash
-set -e
+            set -e
 
-echo "======================================"
-echo "🔐 Freqtrade Secure Startup"
-echo "======================================"
+            echo "======================================"
+            echo "🔐 Freqtrade Secure Startup"
+            echo "======================================"
 
-API_KEY="${API_KEY}"
-API_SECRET="${API_SECRET}"
-FT_MAX_CAPITAL="${FT_MAX_CAPITAL}"
-REMOTE_IP="${REMOTE_IP}"
-CONFIG_TEMPLATE="${CONFIG_TEMPLATE:-/freqtrade/custom_config/config.json}"
-CONFIG_RUNTIME="${CONFIG_RUNTIME:-/freqtrade/runtime_config.json}"
+            API_KEY="${{API_KEY}}"
+            API_SECRET="${{API_SECRET}}"
+            FT_MAX_CAPITAL="${{FT_MAX_CAPITAL}}"
+            REMOTE_IP="${{REMOTE_IP}}"
+            CONFIG_TEMPLATE="${{CONFIG_TEMPLATE:-/freqtrade/custom_config/config.json}}"
+            CONFIG_RUNTIME="${{CONFIG_RUNTIME:-/freqtrade/runtime_config.json}}"
 
-if [ -z "$API_KEY" ] || [ -z "$API_SECRET" ]; then
-    echo "❌ ERROR: API_KEY or API_SECRET not set"
-    exit 1
-fi
+            echo "🔧 修复权限..."
+            chown -R ftuser:ftuser /freqtrade/user_data_manager/{user_id} 2>/dev/null || true
+            chmod -R 755 /freqtrade/user_data_manager/{user_id} 2>/dev/null || true
+            find /freqtrade/user_data_manager/{user_id} -type f -exec chmod 644 {{}} \\; 2>/dev/null || true
 
-if [ -z "FT_MAX_CAPITAL" ] ; then
-    echo "❌ FT_MAX_CAPITAL not set"
-    exit 1
-fi
+            echo "✅ 权限修复完成"
+            echo "🚀 启动 Freqtrade..."
 
-if [ -z "REMOTE_IP" ] ; then
-    echo "❌ REMOTE_IP not set"
-    exit 1
-fi
+            if [ -z "$API_KEY" ] || [ -z "$API_SECRET" ]; then
+                echo "❌ ERROR: API_KEY or API_SECRET not set"
+                exit 1
+            fi
 
-echo "✅ API credentials provided"
-echo "   API Key: ${API_KEY:0:8}...${API_KEY: -4}"
+            if [ -z "$FT_MAX_CAPITAL" ] ; then
+                echo "❌ FT_MAX_CAPITAL not set"
+                exit 1
+            fi
 
-if [ ! -f "$CONFIG_TEMPLATE" ]; then
-    echo "❌ ERROR: Configuration template not found: $CONFIG_TEMPLATE"
-    exit 1
-fi
+            if [ -z "$REMOTE_IP" ] ; then
+                echo "❌ REMOTE_IP not set"
+                exit 1
+            fi
 
-echo "✅ Configuration template found: $CONFIG_TEMPLATE"
-echo "🔧 Injecting API credentials into configuration..."
+            echo "✅ API credentials provided"
+            echo "   API Key: ${{API_KEY:0:8}}...${{API_KEY: -4}}"
 
-jq --arg apikey "$API_KEY" --arg secret "$API_SECRET" '
-   if .exchange then 
-     .exchange.key = $apikey | 
-     .exchange.secret = $secret 
-   else . end |
-   if .exchange.ccxt_config then 
-     .exchange.ccxt_config.apiKey = $apikey | 
-     .exchange.ccxt_config.secret = $secret 
-   else . end |
-   if .exchange.ccxt_async_config then 
-     .exchange.ccxt_async_config.apiKey = $apikey | 
-     .exchange.ccxt_async_config.secret = $secret 
-   else . end
-   ' "$CONFIG_TEMPLATE" > "$CONFIG_RUNTIME"
+            if [ ! -f "$CONFIG_TEMPLATE" ]; then
+                echo "❌ ERROR: Configuration template not found: $CONFIG_TEMPLATE"
+                exit 1
+            fi
 
-if [ $? -ne 0 ]; then
-    echo "❌ ERROR: Failed to create runtime configuration"
-    exit 1
-fi
+            echo "✅ Configuration template found: $CONFIG_TEMPLATE"
+            echo "🔧 Injecting API credentials into configuration..."
 
-echo "✅ Runtime configuration created: $CONFIG_RUNTIME"
+            jq --arg apikey "$API_KEY" --arg secret "$API_SECRET" '
+               if .exchange then 
+                 .exchange.key = $apikey | 
+                 .exchange.secret = $secret 
+               else . end |
+               if .exchange.ccxt_config then 
+                 .exchange.ccxt_config.apiKey = $apikey | 
+                 .exchange.ccxt_config.secret = $secret 
+               else . end |
+               if .exchange.ccxt_async_config then 
+                 .exchange.ccxt_async_config.apiKey = $apikey | 
+                 .exchange.ccxt_async_config.secret = $secret 
+               else . end
+               ' "$CONFIG_TEMPLATE" > "$CONFIG_RUNTIME"
 
-KEY_IN_CONFIG=$(jq -r '.exchange.key' "$CONFIG_RUNTIME")
-SECRET_IN_CONFIG=$(jq -r '.exchange.secret' "$CONFIG_RUNTIME")
+            if [ $? -ne 0 ]; then
+                echo "❌ ERROR: Failed to create runtime configuration"
+                exit 1
+            fi
 
-if [ "$KEY_IN_CONFIG" = "$API_KEY" ] && [ "$SECRET_IN_CONFIG" = "$API_SECRET" ]; then
-    echo "✅ Configuration verified successfully"
-    echo "   Injected API Key: ${KEY_IN_CONFIG:0:8}...${KEY_IN_CONFIG: -4}"
-else
-    echo "❌ ERROR: Configuration verification failed"
-    exit 1
-fi
+            echo "✅ Runtime configuration created: $CONFIG_RUNTIME"
 
-echo "======================================"
-echo "🚀 Starting Freqtrade..."
-echo "======================================"
+            KEY_IN_CONFIG=$(jq -r '.exchange.key' "$CONFIG_RUNTIME")
+            SECRET_IN_CONFIG=$(jq -r '.exchange.secret' "$CONFIG_RUNTIME")
 
-exec freqtrade trade \\
-    -c "$CONFIG_RUNTIME" \\
-    --logfile /freqtrade/custom_logs/freqtrade.log \\
-    --db-url sqlite:////freqtrade/custom_database/tradesv3.sqlite \\
-    --strategy MyStrategy 
-'''
+            if [ "$KEY_IN_CONFIG" = "$API_KEY" ] && [ "$SECRET_IN_CONFIG" = "$API_SECRET" ]; then
+                echo "✅ Configuration verified successfully"
+                echo "   Injected API Key: ${{KEY_IN_CONFIG:0:8}}...${{KEY_IN_CONFIG: -4}}"
+            else
+                echo "❌ ERROR: Configuration verification failed"
+                exit 1
+            fi
+
+            echo "======================================"
+            echo "🚀 Starting Freqtrade..."
+            echo "======================================"
+
+            exec freqtrade trade \\
+                -c "$CONFIG_RUNTIME" \\
+                --logfile /freqtrade/custom_logs/freqtrade.log \\
+                --db-url sqlite:////freqtrade/custom_database/tradesv3.sqlite \\
+                --strategy MyStrategy 
+            '''.format(user_id=user_id)
 
             # 11. 创建服务
             service = self.client.services.create(
