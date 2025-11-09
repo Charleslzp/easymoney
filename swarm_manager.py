@@ -402,13 +402,29 @@ class SwarmManager:
                 ]
             )
 
+            subscription = self.db.get_user_subscription(user_id)
+            if subscription:
+                max_capital= subscription['max_capital']
+                env_vars = [
+                    f'API_KEY={api_key}',
+                    f'API_SECRET={secret}',
+                    f'FT_MAX_CAPITAL={max_capital}',
+
+                    'CONFIG_TEMPLATE=/freqtrade/custom_config/config.json',
+                    'CONFIG_RUNTIME=/freqtrade/runtime_config.json'
+                ]
+            else:
+                print(f'未订阅 {user_id}')
+                env_vars = [
+                    f'API_KEY={api_key}',
+                    f'API_SECRET={secret}',
+
+                    'CONFIG_TEMPLATE=/freqtrade/custom_config/config.json',
+                    'CONFIG_RUNTIME=/freqtrade/runtime_config.json'
+                ]
+
             # 9. 环境变量
-            env_vars = [
-                f'API_KEY={api_key}',
-                f'API_SECRET={secret}',
-                'CONFIG_TEMPLATE=/freqtrade/custom_config/config.json',
-                'CONFIG_RUNTIME=/freqtrade/runtime_config.json'
-            ]
+
 
             # 10. jq 注入启动脚本
             entrypoint_script = '''#!/bin/bash
@@ -420,11 +436,17 @@ echo "======================================"
 
 API_KEY="${API_KEY}"
 API_SECRET="${API_SECRET}"
+FT_MAX_CAPITAL="${FT_MAX_CAPITAL}"
 CONFIG_TEMPLATE="${CONFIG_TEMPLATE:-/freqtrade/custom_config/config.json}"
 CONFIG_RUNTIME="${CONFIG_RUNTIME:-/freqtrade/runtime_config.json}"
 
 if [ -z "$API_KEY" ] || [ -z "$API_SECRET" ]; then
     echo "❌ ERROR: API_KEY or API_SECRET not set"
+    exit 1
+fi
+
+if [ -z "FT_MAX_CAPITAL" ] ; then
+    echo "❌ FT_MAX_CAPITAL not set"
     exit 1
 fi
 
