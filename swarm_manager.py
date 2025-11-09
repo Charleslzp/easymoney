@@ -572,6 +572,7 @@ class SwarmManager:
             service = self.client.services.create(
                 image='freqtrade:latest',
                 name=service_name,
+                user='0:0',
                 command=['/bin/bash', '-c', entrypoint_script],
                 env=env_vars,
                 mounts=mounts,
