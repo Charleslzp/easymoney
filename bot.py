@@ -1330,7 +1330,7 @@ async def start_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # 检查是否绑定API
-    logger.info(f"用户 {user_id} 准备启动服务1")
+
     user = db.get_user_by_telegram_id(user_id)
     if not user.get('api_key') or not user.get('security'):
         await update.message.reply_text("❌ 请先绑定API密钥!\n\n使用 /bind 命令绑定")
@@ -1341,15 +1341,19 @@ async def start_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ 配置文件不存在,请重新绑定API")
         return
 
+    logger.info(f"用户 {user_id} 准备启动服务1")
+
     msg = await update.message.reply_text("🔄 正在启动交易机器人...")
 
     try:
         # 创建服务
         success, message = swarm_manager.create_service(user_id)
+        logger.info(f"用户 {user_id} 准备启动服务2")
 
         if success:
             # ⭐⭐ 关键修复: 立即更新数据库状态
             update_user_trading_status(user_id, True)
+            logger.info(f"用户 {user_id} 准备启动服务3")
 
             lang = menu_system.get_user_language(user_id).value
             if lang == "zh":
