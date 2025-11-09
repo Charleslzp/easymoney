@@ -1284,21 +1284,34 @@ async def start_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """启动交易机器人(添加订阅检查)"""
     user_id = update.message.from_user.id
 
-    logger.info(f"用户 {user_id} 准备启动服务")
+    logger.info(f"📍 [STEP 1] 用户 {user_id} 准备启动服务")
 
     if not db.user_exists(user_id):
+        logger.info(f"📍 [STEP 1.1] 用户 {user_id} 不存在")
         await update.message.reply_text("❌ 请先注册!")
         return
 
+    logger.info(f"📍 [STEP 2] 用户 {user_id} 通过用户存在检查")
+
     # 速率限制
     if not rate_limiter.is_allowed(user_id):
+        logger.info(f"📍 [STEP 2.1] 用户 {user_id} 触发速率限制")
         await update.message.reply_text("⚠️ 操作过于频繁,请稍后再试")
         return
 
+    logger.info(f"📍 [STEP 3] 用户 {user_id} 开始检查订阅状态")
+
     # ⭐ 检查订阅状态
-    status = payment_system.get_subscription_status(user_id)
+    try:
+        status = payment_system.get_subscription_status(user_id)
+        logger.info(f"📍 [STEP 3.1] 用户 {user_id} 订阅状态: {status}")
+    except Exception as e:
+        logger.error(f"❌ [STEP 3.1 ERROR] 获取订阅状态失败: {e}", exc_info=True)
+        await update.message.reply_text(f"❌ 获取订阅状态失败: {str(e)}")
+        return
 
     if not status['active']:
+        logger.info(f"📍 [STEP 3.2] 用户 {user_id} 订阅未激活")
         address = status['address']
         balance = status['balance']
 
@@ -1329,32 +1342,54 @@ async def start_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(message, parse_mode='HTML')
         return
 
-    # 检查是否绑定API
-    logger.info(f"用户 {user_id} 准备启动服务0.5")
+    logger.info(f"📍 [STEP 4] 用户 {user_id} 检查 API 绑定")
 
-    user = db.get_user_by_telegram_id(user_id)
+    # 检查是否绑定API
+    try:
+        user = db.get_user_by_telegram_id(user_id)
+        logger.info(f"📍 [STEP 4.1] 用户 {user_id} 数据: {user.get('api_key', 'None')[:10]}...")
+    except Exception as e:
+        logger.error(f"❌ [STEP 4.1 ERROR] 获取用户数据失败: {e}", exc_info=True)
+        await update.message.reply_text(f"❌ 获取用户数据失败: {str(e)}")
+        return
+
     if not user.get('api_key') or not user.get('security'):
+        logger.info(f"📍 [STEP 4.2] 用户 {user_id} API 未绑定")
         await update.message.reply_text("❌ 请先绑定API密钥!\n\n使用 /bind 命令绑定")
         return
 
+    logger.info(f"📍 [STEP 5] 用户 {user_id} 检查配置文件")
+
     # 检查配置文件
     if not config_manager.config_exists(user_id):
+        logger.info(f"📍 [STEP 5.1] 用户 {user_id} 配置文件不存在")
         await update.message.reply_text("❌ 配置文件不存在,请重新绑定API")
         return
 
-    logger.info(f"用户 {user_id} 准备启动服务1")
-
-    msg = await update.message.reply_text("🔄 正在启动交易机器人...")
+    logger.info(f"📍 [STEP 6] 用户 {user_id} 开始发送启动消息")
 
     try:
+        msg = await update.message.reply_text("🔄 正在启动交易机器人...")
+        logger.info(f"📍 [STEP 6.1] 用户 {user_id} 启动消息已发送")
+    except Exception as e:
+        logger.error(f"❌ [STEP 6.1 ERROR] 发送消息失败: {e}", exc_info=True)
+        return
+
+    try:
+        logger.info(f"📍 [STEP 7] 用户 {user_id} 调用 swarm_manager.create_service")
+
         # 创建服务
         success, message = swarm_manager.create_service(user_id)
-        logger.info(f"用户 {user_id} 准备启动服务2")
+
+        logger.info(f"📍 [STEP 7.1] 用户 {user_id} create_service 返回: success={success}, message={message}")
 
         if success:
+            logger.info(f"📍 [STEP 8] 用户 {user_id} 更新交易状态")
+
             # ⭐⭐ 关键修复: 立即更新数据库状态
             update_user_trading_status(user_id, True)
-            logger.info(f"用户 {user_id} 准备启动服务3")
+
+            logger.info(f"📍 [STEP 8.1] 用户 {user_id} 交易状态已更新")
 
             lang = menu_system.get_user_language(user_id).value
             if lang == "zh":
@@ -1380,14 +1415,21 @@ async def start_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"📈 Use /performance for stats"
                 )
 
+            logger.info(f"📍 [STEP 9] 用户 {user_id} 获取菜单键盘")
+
             # ⭐ 更新菜单为交易状态
             user_status, has_invite_code = get_user_status(user_id)
             keyboard = menu_system.get_main_keyboard(user_id, user_status, has_invite_code)
 
+            logger.info(f"📍 [STEP 9.1] 用户 {user_id} 准备编辑消息")
+
             # 使用安全的编辑函数
             await safe_edit_message(msg, success_text, reply_markup=keyboard, parse_mode='HTML')
-            logger.info(f"用户 {user_id} 启动服务成功")
+
+            logger.info(f"✅ [COMPLETE] 用户 {user_id} 启动服务成功")
         else:
+            logger.info(f"📍 [STEP 8 FAILED] 用户 {user_id} 启动失败")
+
             # 启动失败，确保状态是停止
             update_user_trading_status(user_id, False)
 
@@ -1400,10 +1442,10 @@ async def start_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"❌ 启动失败\n\n{message}",
                 reply_markup=keyboard
             )
-            logger.error(f"用户 {user_id} 启动服务失败: {message}")
+            logger.error(f"❌ [FAILED] 用户 {user_id} 启动服务失败: {message}")
 
     except Exception as e:
-        logger.error(f"启动机器人时发生异常: {e}")
+        logger.error(f"❌ [EXCEPTION] 启动机器人时发生异常: {e}", exc_info=True)
 
         # 确保状态正确
         update_user_trading_status(user_id, False)
