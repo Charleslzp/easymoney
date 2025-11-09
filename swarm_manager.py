@@ -470,27 +470,30 @@ class SwarmManager:
             
             # ⭐ 移除 2>/dev/null || true，看真实错误
             echo "   执行 chown..."
-            chown -R ftuser:ftuser /freqtrade/user_data/
+            chown -R ftuser:ftuser /freqtrade/custom_database/
+            chown -R ftuser:ftuser /freqtrade/custom_logs/
             if [ $? -ne 0 ]; then
                 echo "⚠️ chown 失败，但继续执行..."
             fi
             
             echo "   执行 chmod 目录..."
-            chmod -R 755 /freqtrade/user_data/
+            chmod -R 755 /freqtrade/custom_database/
+            chmod -R 755 /freqtrade/custom_logs/
             if [ $? -ne 0 ]; then
                 echo "⚠️ chmod 目录失败，但继续执行..."
             fi
             
             echo "   执行 chmod 文件..."
-            find /freqtrade/user_data/ -type f -exec chmod 644 {{}} \\;
+            find /freqtrade/custom_database/ -type f -exec chmod 644 {{}} \\;
+            find /freqtrade/custom_logs/ -type f -exec chmod 644 {{}} \\;
             if [ $? -ne 0 ]; then
                 echo "⚠️ chmod 文件失败，但继续执行..."
             fi
             
             # 验证权限
             echo "   验证权限结果:"
-            ls -la /freqtrade/user_data/ || true
-            ls -la /freqtrade/user_data/database/ || true
+            ls -la /freqtrade/custom_database/ || true
+            ls -la /freqtrade/custom_logs/ || true
             
             echo "✅ 权限修复完成"
             echo "🚀 启动 Freqtrade..."
