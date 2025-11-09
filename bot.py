@@ -1330,6 +1330,7 @@ async def start_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # 检查是否绑定API
+    logger.info(f"用户 {user_id} 准备启动服务1")
     user = db.get_user_by_telegram_id(user_id)
     if not user.get('api_key') or not user.get('security'):
         await update.message.reply_text("❌ 请先绑定API密钥!\n\n使用 /bind 命令绑定")
