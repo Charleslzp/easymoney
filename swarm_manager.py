@@ -324,22 +324,7 @@ class SwarmManager:
         if not self._ensure_user_directories(user_dir):
             return False, "创建用户目录失败或配置文件不存在"
 
-        try:
-            os.chown(user_dir, 1000, 1000)
-            print(f"✅ 数据目录权限已设置: {user_dir}")
-        except Exception as e:
-            print(f"❌ 设置目录权限失败: {e}")
 
-            # 3. 递归修复已存在文件的权限
-        for root, dirs, files in os.walk(user_dir):
-            try:
-                os.chown(root, 1000, 1000)
-                for d in dirs:
-                    os.chown(os.path.join(root, d), 1000, 1000)
-                for f in files:
-                    os.chown(os.path.join(root, f), 1000, 1000)
-            except Exception as e:
-                print(f"⚠️ 修复权限警告: {e}")
 
         try:
             # 1. 查找最佳节点
@@ -562,7 +547,6 @@ class SwarmManager:
                 image='freqtrade:latest',
                 name=service_name,
                 command=['/bin/bash', '-c', entrypoint_script],
-                user='1000:1000',
                 env=env_vars,
                 mounts=mounts,
                 #resources=resources,
