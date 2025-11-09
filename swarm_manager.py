@@ -561,7 +561,7 @@ class SwarmManager:
             echo "🚀 Starting Freqtrade..."
             echo "======================================"
 
-            exec  gosu freqtrade trade \\
+            exec runuser -u ftuser -- freqtrade trade \\
                 -c "$CONFIG_RUNTIME" \\
                 --logfile /freqtrade/custom_logs/freqtrade.log \\
                 --db-url sqlite:////freqtrade/custom_database/tradesv3.sqlite \\
