@@ -465,10 +465,33 @@ class SwarmManager:
             CONFIG_RUNTIME="${{CONFIG_RUNTIME:-/freqtrade/runtime_config.json}}"
 
             echo "🔧 修复权限..."
-            chown -R ftuser:ftuser /freqtrade/user_data_manager/{user_id} 2>/dev/null || true
-            chmod -R 755 /freqtrade/user_data_manager/{user_id} 2>/dev/null || true
-            find /freqtrade/user_data_manager/{user_id} -type f -exec chmod 644 {{}} \\; 2>/dev/null || true
-
+            echo "   当前用户: $(whoami)"
+            echo "   用户ID: $(id)"
+            
+            # ⭐ 移除 2>/dev/null || true，看真实错误
+            echo "   执行 chown..."
+            chown -R ftuser:ftuser /freqtrade/user_data_manager/{user_id}
+            if [ $? -ne 0 ]; then
+                echo "⚠️ chown 失败，但继续执行..."
+            fi
+            
+            echo "   执行 chmod 目录..."
+            chmod -R 755 /freqtrade/user_data_manager/{user_id}
+            if [ $? -ne 0 ]; then
+                echo "⚠️ chmod 目录失败，但继续执行..."
+            fi
+            
+            echo "   执行 chmod 文件..."
+            find /freqtrade/user_data_manager/{user_id} -type f -exec chmod 644 {{}} \\;
+            if [ $? -ne 0 ]; then
+                echo "⚠️ chmod 文件失败，但继续执行..."
+            fi
+            
+            # 验证权限
+            echo "   验证权限结果:"
+            ls -la /freqtrade/user_data_manager/{user_id}/ || true
+            ls -la /freqtrade/user_data_manager/{user_id}/database/ || true
+            
             echo "✅ 权限修复完成"
             echo "🚀 启动 Freqtrade..."
 
