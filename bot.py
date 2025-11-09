@@ -2027,75 +2027,78 @@ def main():
         return
 
     # 创建应用
-    app = Application.builder().token(BOT_TOKEN).build()
+    try:
+        app = Application.builder().token(BOT_TOKEN).build()
 
-    # ========== 基础命令 ==========
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("register", register))
-    app.add_handler(CommandHandler("bind", bind))
-    app.add_handler(CommandHandler("lang", switch_language))  # ⭐ 新增
-    app.add_handler(CommandHandler("help", help_command))
+        # ========== 基础命令 ==========
+        app.add_handler(CommandHandler("start", start))
+        app.add_handler(CommandHandler("register", register))
+        app.add_handler(CommandHandler("bind", bind))
+        app.add_handler(CommandHandler("lang", switch_language))  # ⭐ 新增
+        app.add_handler(CommandHandler("help", help_command))
 
-    # ========== 交易控制命令 ==========
-    app.add_handler(CommandHandler("startbot", start_bot))
-    app.add_handler(CommandHandler("stopbot", stop_bot))
-    app.add_handler(CommandHandler("restart", restart_bot))
-    app.add_handler(CommandHandler("status", status))
-    app.add_handler(CommandHandler("logs", view_logs))
-    app.add_handler(CommandHandler("config", config_menu))
+        # ========== 交易控制命令 ==========
+        app.add_handler(CommandHandler("startbot", start_bot))
+        app.add_handler(CommandHandler("stopbot", stop_bot))
+        app.add_handler(CommandHandler("restart", restart_bot))
+        app.add_handler(CommandHandler("status", status))
+        app.add_handler(CommandHandler("logs", view_logs))
+        app.add_handler(CommandHandler("config", config_menu))
 
-    # ========== ⭐ 支付和订阅命令 ==========
-    app.add_handler(CommandHandler("my_address", my_payment_address))
-    app.add_handler(CommandHandler("recharge", my_payment_address))  # 别名
-    #app.add_handler(CommandHandler("my_subscription", subscription_info))
-    #app.add_handler(CommandHandler("plans", view_plans))
-    app.add_handler(CommandHandler("recharge_history", recharge_records))
+        # ========== ⭐ 支付和订阅命令 ==========
+        app.add_handler(CommandHandler("my_address", my_payment_address))
+        app.add_handler(CommandHandler("recharge", my_payment_address))  # 别名
+        #app.add_handler(CommandHandler("my_subscription", subscription_info))
+        #app.add_handler(CommandHandler("plans", view_plans))
+        app.add_handler(CommandHandler("recharge_history", recharge_records))
 
-    # ========== Freqtrade REST API 命令 ==========
-    app.add_handler(CommandHandler("profit", ft_profit))
-    app.add_handler(CommandHandler("performance", ft_performance))
-    app.add_handler(CommandHandler("positions", ft_status))
-    app.add_handler(CommandHandler("balance", ft_balance))
-    app.add_handler(CommandHandler("daily", ft_daily))
-    app.add_handler(CommandHandler("count", ft_count))
-    app.add_handler(CommandHandler("version", ft_version))
+        # ========== Freqtrade REST API 命令 ==========
+        app.add_handler(CommandHandler("profit", ft_profit))
+        app.add_handler(CommandHandler("performance", ft_performance))
+        app.add_handler(CommandHandler("positions", ft_status))
+        app.add_handler(CommandHandler("balance", ft_balance))
+        app.add_handler(CommandHandler("daily", ft_daily))
+        app.add_handler(CommandHandler("count", ft_count))
+        app.add_handler(CommandHandler("version", ft_version))
 
-    # ========== 交易控制命令 ==========
-    app.add_handler(CommandHandler("ft_start", ft_start_trading))
-    app.add_handler(CommandHandler("ft_stop", ft_stop_trading))
+        # ========== 交易控制命令 ==========
+        app.add_handler(CommandHandler("ft_start", ft_start_trading))
+        app.add_handler(CommandHandler("ft_stop", ft_stop_trading))
 
-    # ========== Docker 命令(备用) ==========
-    app.add_handler(CommandHandler("ft", ft_command))
+        # ========== Docker 命令(备用) ==========
+        app.add_handler(CommandHandler("ft", ft_command))
 
-    # ========== ⭐ 按钮回调和消息处理 ==========
-    app.add_handler(CallbackQueryHandler(button_callback))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+        # ========== ⭐ 按钮回调和消息处理 ==========
+        app.add_handler(CallbackQueryHandler(button_callback))
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    # ⭐ 添加邀请码命令
-    app.add_handler(CommandHandler("invite", use_invite_code))
-    app.add_handler(CommandHandler("my_invite", my_invite_info))
-    app.add_handler(CommandHandler("my_invitees", my_invitees_list))  # 新增
+        # ⭐ 添加邀请码命令
+        app.add_handler(CommandHandler("invite", use_invite_code))
+        app.add_handler(CommandHandler("my_invite", my_invite_info))
+        app.add_handler(CommandHandler("my_invitees", my_invitees_list))  # 新增
 
-    # ... 其他代码 ...
+        # ... 其他代码 ...
 
-    logger.info("✅ 邀请码系统已加载")
+        logger.info("✅ 邀请码系统已加载")
 
 
+        # ========== 错误处理 ==========
+        app.add_error_handler(error_handler)
 
-    # ========== 错误处理 ==========
-    app.add_error_handler(error_handler)
+        # 启动机器人
+        logger.info("=" * 50)
+        logger.info("🤖 Freqtrade Telegram Bot 启动中...")
+        logger.info("=" * 50)
+        logger.info("✅ REST API 客户端已加载")
+        logger.info("✅ Docker 命令执行器已加载")
+        logger.info("✅ 多语言菜单系统已加载")  # ⭐ 新增
+        logger.info("=" * 50)
+        register_flexible_subscription_commands(app,menu_system)
 
-    # 启动机器人
-    logger.info("=" * 50)
-    logger.info("🤖 Freqtrade Telegram Bot 启动中...")
-    logger.info("=" * 50)
-    logger.info("✅ REST API 客户端已加载")
-    logger.info("✅ Docker 命令执行器已加载")
-    logger.info("✅ 多语言菜单系统已加载")  # ⭐ 新增
-    logger.info("=" * 50)
-    register_flexible_subscription_commands(app,menu_system)
+        app.run_polling(allowed_updates=Update.ALL_TYPES)
 
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    except Exception as e:
+        logging.error(f"Error occurred: {e}")
 
 
 if __name__ == "__main__":
