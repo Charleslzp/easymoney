@@ -2095,7 +2095,7 @@ def main():
         logger.info("=" * 50)
         register_flexible_subscription_commands(app,menu_system)
 
-        app.run_polling(allowed_updates=Update.ALL_TYPES)
+        app.run_polling(allowed_updates=Update.ALL_TYPES,drop_pending_updates=True)
 
     except Exception as e:
         logging.error(f"Error occurred: {e}")
