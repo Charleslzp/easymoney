@@ -51,7 +51,7 @@ class FreqtradeAPIClient:
 
             # 如果没有节点信息,回退到 localhost (仅适用于本地部署)
             api_port = self._get_api_port(user_id)
-            base_url = f"http://localhost:{api_port}/api/v1"
+            base_url = f"http://127.0.0.1:{api_port}/api/v1"
             logger.warning(f"节点信息不存在,回退到localhost: {base_url}")
             return base_url
 
