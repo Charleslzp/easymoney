@@ -514,6 +514,32 @@ class MyStrategy(IStrategy):
             }
         }
 
+    def bot_start(self, **kwargs) -> None:
+        """策略启动时自动设置币安参数"""
+
+        print("\n" + "=" * 60)
+        print("🚀 自动设置币安合约参数...")
+        print("=" * 60)
+
+        exchange = self.exchange
+
+        # 1. 设置持仓模式为单向持仓
+
+
+        # 3. 为所有交易对设置杠杆
+        leverage = self.config.get('leverage', 5)
+        print(f"\n🔧 设置杠杆为 {leverage}x...")
+
+        for pair in self.dp.available_pairs:
+            try:
+                exchange.set_leverage(leverage, pair)
+                print(f"   ✅ {pair}: {leverage}x")
+            except Exception as e:
+                print(f"   ⚠️  {pair}: {e}")
+
+        print("=" * 60)
+        print("🏁 初始化完成\n")
+
     def __init__(self, **kwargs):
         """初始化策略"""
         super().__init__(**kwargs)
@@ -522,6 +548,7 @@ class MyStrategy(IStrategy):
         print('[INFO] ==========================================')
 
         self._trades_closed_on_startup = False
+        #self.set_api()
 
         # ⭐ 新增：从环境变量读取最大可操作金额
         self.max_capital = self._get_max_capital_from_env()
