@@ -320,14 +320,12 @@ class MenuSystem:
     <b>交易控制:</b>
     /startbot - 启动自动交易
     /stopbot - 停止自动交易
-    /status - 查看服务状态
 
     <b>交易信息:</b>
     /profit - 查看收益统计
     /performance - 查看币种性能
     /positions - 查看当前持仓
     /balance - 查看账户余额
-    /pairs - 查看交易对列表
 
     <b>配置管理:</b>
     /config - 配置管理菜单
@@ -377,14 +375,12 @@ class MenuSystem:
     <b>Trading Control:</b>
     /startbot - Start trading
     /stopbot - Stop trading
-    /status - View service status
 
     <b>Trading Info:</b>
     /profit - View profit statistics
     /performance - View coin performance
     /positions - View positions
     /balance - View account balance
-    /pairs - View trading pairs
 
     <b>Configuration:</b>
     /config - Configuration menu

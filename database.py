@@ -227,6 +227,8 @@ class Database:
                 inviter_user_id INTEGER NOT NULL,
                 invitee_user_id INTEGER NOT NULL UNIQUE,
                 invite_code TEXT NOT NULL,
+                inviter_reward_total REAL DEFAULT 0.0,  -- ⭐ 新增字段: 累计给邀请人的奖励
+
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (inviter_user_id) REFERENCES users(user_id),
                 FOREIGN KEY (invitee_user_id) REFERENCES users(user_id)
@@ -1029,36 +1031,6 @@ class Database:
         self.log_operation(user_id, "create_invite_code", f"创建邀请码: {invite_code}")
         return invite_code
 
-    def get_user_invite_stats(self, user_id: int) -> Dict:
-        """获取用户邀请统计"""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('''
-            SELECT COUNT(*) as invite_count
-            FROM user_invitations
-            WHERE inviter_user_id = ?
-        ''', (user_id,))
-        invite_count = cursor.fetchone()[0]
-
-        cursor.execute('''
-            SELECT COALESCE(SUM(reward_amount), 0) as total_rewards
-            FROM invite_rewards
-            WHERE inviter_user_id = ?
-        ''', (user_id,))
-        total_rewards = cursor.fetchone()[0]
-
-        cursor.execute('SELECT invite_code FROM users WHERE user_id = ?', (user_id,))
-        row = cursor.fetchone()
-        invite_code = row[0] if row else None
-
-        conn.close()
-
-        return {
-            'invite_code': invite_code,
-            'invite_count': invite_count,
-            'total_rewards': total_rewards
-        }
 
     def get_user_inviter(self, user_id: int) -> Optional[int]:
         """获取邀请人ID"""

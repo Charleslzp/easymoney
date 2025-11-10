@@ -529,7 +529,7 @@ async def my_invitees_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # 获取邀请列表
-    invitees = db.get_my_invitees(user_id, limit=20)
+    invitees = db.get_user_invitees(user_id, limit=20)
     stats = db.get_invite_stats(user_id)
 
     lang = menu_system.get_user_language(user_id).value
@@ -744,34 +744,34 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = menu_system.get_user_language(user_id).value
     if lang == "zh":
         welcome_text = (
-            "🤖 <b>Freqtrade 交易机器人</b>\n\n"
-            "欢迎使用自动交易系统!\n\n"
+            "🤖 <b>自助量化交易机器人</b>\n\n"
+            "欢迎使用EasyMoney量化交易系统!\n\n"
             "📋 <b>功能特点:</b>\n"
-            "• 自动化交易执行\n"
-            "• 实时盈亏监控\n"
-            "• 多币种同时操作\n"
+            "• 基于自研的两层三模型的AIAgent自动执行交易指令\n"
+            "• 高收益率（复合APY 80%以上），实时盈亏监控\n"
+            "• 多币种同时操作，既能做多也能做空\n"
             "• 灵活配置管理\n\n"
             "💡 <b>快速开始:</b>\n"
             "1️⃣ 点击 '📝 注册' 创建账户\n"
             "2️⃣ 使用 /bind 绑定交易所API\n"
             "3️⃣ 充值并订阅套餐\n"
-            "4️⃣ 点击 '▶️ 启动交易' 开始\n\n"
+            "4️⃣ 订阅成功后，点击 '▶️ 启动交易' 开始量化\n\n"
             "❓ 需要帮助? 点击 '❓ 帮助'"
         )
     else:
         welcome_text = (
-            "🤖 <b>Freqtrade Trading Bot</b>\n\n"
-            "Welcome to the automated trading system!\n\n"
+            "🤖 <b>Self-Service Quantitative Trading Bot</b>\n\n"
+            "Welcome to the EasyMoney Quantitative Trading System!\n\n"
             "📋 <b>Features:</b>\n"
-            "• Automated trading execution\n"
-            "• Real-time P&L monitoring\n"
-            "• Multi-coin operations\n"
-            "• Flexible configuration\n\n"
+            "• Based on our proprietary two-layer, three-model AIAgent for automatic trading execution\n"
+            "• High return rates (compound APY above 80%), real-time profit and loss monitoring\n"
+            "• Multi-currency operation, capable of both long and short trades\n"
+            "• Flexible configuration management\n\n"
             "💡 <b>Quick Start:</b>\n"
-            "1️⃣ Click '📝 Register' to create account\n"
-            "2️⃣ Use /bind to bind exchange API\n"
-            "3️⃣ Recharge and subscribe\n"
-            "4️⃣ Click '▶️ Start Trading' to begin\n\n"
+            "1️⃣ Click '📝 Register' to create an account\n"
+            "2️⃣ Use /bind to link your exchange API\n"
+            "3️⃣ Deposit funds and subscribe to a plan\n"
+            "4️⃣ Once subscribed, click '▶️ Start Trading' to begin quantitative trading\n\n"
             "❓ Need help? Click '❓ Help'"
         )
 
@@ -2090,9 +2090,9 @@ def main():
         # ========== 交易控制命令 ==========
         app.add_handler(CommandHandler("startbot", start_bot))
         app.add_handler(CommandHandler("stopbot", stop_bot))
-        app.add_handler(CommandHandler("restart", restart_bot))
-        app.add_handler(CommandHandler("status", status))
-        app.add_handler(CommandHandler("logs", view_logs))
+        #app.add_handler(CommandHandler("restart", restart_bot))
+        #app.add_handler(CommandHandler("status", status))
+        #app.add_handler(CommandHandler("logs", view_logs))
         app.add_handler(CommandHandler("config", config_menu))
 
         # ========== ⭐ 支付和订阅命令 ==========
@@ -2100,15 +2100,15 @@ def main():
         app.add_handler(CommandHandler("recharge", my_payment_address))  # 别名
         #app.add_handler(CommandHandler("my_subscription", subscription_info))
         #app.add_handler(CommandHandler("plans", view_plans))
-        app.add_handler(CommandHandler("recharge_history", recharge_records))
+        #app.add_handler(CommandHandler("recharge_history", recharge_records))
 
         # ========== Freqtrade REST API 命令 ==========
         app.add_handler(CommandHandler("profit", ft_profit))
         app.add_handler(CommandHandler("performance", ft_performance))
         app.add_handler(CommandHandler("positions", ft_status))
         app.add_handler(CommandHandler("balance", ft_balance))
-        app.add_handler(CommandHandler("daily", ft_daily))
-        app.add_handler(CommandHandler("count", ft_count))
+        #app.add_handler(CommandHandler("daily", ft_daily))
+        #app.add_handler(CommandHandler("count", ft_count))
         app.add_handler(CommandHandler("version", ft_version))
 
         # ========== 交易控制命令 ==========

@@ -969,14 +969,20 @@ class MyStrategy(IStrategy):
 
     def custom_exit_price(self, pair: str, trade: Trade, current_time: datetime,
                           proposed_rate: float, current_profit: float,
-                          exit_check: str, **kwargs) -> float:
-        """⭐ 自定义卖出价格"""
+                          **kwargs) -> float:
+        """⭐ 自定义卖出价格 - 兼容多版本"""
         try:
+            # 从 kwargs 中安全获取参数
+            exit_check = kwargs.get('exit_check', 'force_exit')
+
+            # 获取订单簿
             orderbook = self.dp.orderbook(pair, 1)
 
+            # 初始化退出重试计数
             if not hasattr(trade, 'exit_retry_count'):
                 trade.exit_retry_count = 0
 
+            # 获取退出价格
             exit_price = self.order_strategy.get_exit_price(
                 trade, current_time, proposed_rate, orderbook, current_profit
             )
@@ -984,7 +990,7 @@ class MyStrategy(IStrategy):
             return exit_price
 
         except Exception as e:
-            print(f'[ERROR] custom_exit_price 错误: {e}，使用建议价格')
+            self.logger.error(f'[ERROR] custom_exit_price 错误: {e}')
             return proposed_rate
 
     def check_entry_timeout(self, pair: str, trade: Trade, order: Order,
