@@ -607,11 +607,11 @@ class SwarmManager:
 
             return True, (
                 f"✅ 服务创建成功: {service_name}\n"
-                f"策略: MyStrategy\n"
-                f"🔒 安全模式: jq 动态注入\n"
-                f"📍 部署节点: {best_node['hostname']} ({best_node['role']})\n"
-                f"🌐 节点 IP: {node_ip}\n"
-                f"🔌 API 端口: {api_port}\n"
+                #f"策略: MyStrategy\n"
+                #f"🔒 安全模式: jq 动态注入\n"
+                #f"📍 部署节点: {best_node['hostname']} ({best_node['role']})\n"
+                #f"🌐 节点 IP: {node_ip}\n"
+                #f"🔌 API 端口: {api_port}\n"
                 f"📊 节点负载: {best_node['current'] + 1}/{best_node['max']}"
             )
 
