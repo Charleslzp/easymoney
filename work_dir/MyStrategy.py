@@ -514,7 +514,7 @@ class MyStrategy(IStrategy):
             }
         }
 
-    def bot_start(self, **kwargs) -> None:
+    def set_api(self) -> None:
         """策略启动时自动设置币安参数"""
 
         print("\n" + "=" * 60)
@@ -548,7 +548,7 @@ class MyStrategy(IStrategy):
         print('[INFO] ==========================================')
 
         self._trades_closed_on_startup = False
-        #self.set_api()
+        self.set_api()
 
         # ⭐ 新增：从环境变量读取最大可操作金额
         self.max_capital = self._get_max_capital_from_env()
