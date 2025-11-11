@@ -14,6 +14,8 @@ from datetime import datetime
 from threading import Lock
 import os
 
+MIN_DIFF_THRESHOLD=os.getenv("MIN_DIFF_THRESHOLD", 200)
+
 # 配置日志
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -58,7 +60,14 @@ def calculate_macd_and_trend(df, short=12, long=26, signal=9):
         signalperiod=signal
     )
     df['diff'] = df['hist']
-    df['trend'] = df['diff'].diff().apply(lambda x: 1 if x > 0 else -1)
+    df['diff_change'] = df['diff'].diff()
+    df['trend'] = df.apply(
+        lambda row: 0 if abs(row['diff']) < MIN_DIFF_THRESHOLD
+        else 0 if (row['diff_change'] > 0 and row['diff'] < 0)
+        else 0 if (row['diff_change'] < 0 and row['diff'] > 0)
+        else (1 if row['diff_change'] > 0 else -1),
+        axis=1
+    )
     return df
 
 

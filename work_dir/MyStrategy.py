@@ -88,6 +88,22 @@ from freqtrade.strategy import (
 
 from easymoney.driver import PPPO_Connector
 from easymoney.agent.ppo_agent import PPOAgent
+def reset_method(self):
+    del self.ft, self.env
+    from easymoney.data.feature import FeatureEngine
+    from easymoney.trade.env import TradingEnv
+    self.ft = FeatureEngine()
+    self.env = TradingEnv(type='stream')
+    self.ready_towork = False
+    self.init_state = False
+    self.action = 0
+    self.reward = 0
+    self.vol_factor = 0
+    self.volume = 0
+
+PPPO_Connector.reset = reset_method
+
+
 import re
 from record import TradeRecorder
 
@@ -514,31 +530,7 @@ class MyStrategy(IStrategy):
             }
         }
 
-    def bot_start(self, **kwargs) -> None:
-        """策略启动时自动设置币安参数"""
-
-        print("\n" + "=" * 60)
-        print("🚀 自动设置币安合约参数...")
-        print("=" * 60)
-
-        exchange = self.exchange
-
-        # 1. 设置持仓模式为单向持仓
-
-
-        # 3. 为所有交易对设置杠杆
-        leverage = self.config.get('leverage', 5)
-        print(f"\n🔧 设置杠杆为 {leverage}x...")
-
-        for pair in self.dp.available_pairs:
-            try:
-                exchange.set_leverage(leverage, pair)
-                print(f"   ✅ {pair}: {leverage}x")
-            except Exception as e:
-                print(f"   ⚠️  {pair}: {e}")
-
-        print("=" * 60)
-        print("🏁 初始化完成\n")
+    
 
     def __init__(self, **kwargs):
         """初始化策略"""
@@ -549,6 +541,7 @@ class MyStrategy(IStrategy):
 
         self._trades_closed_on_startup = False
         #self.set_api()
+        self.init_setapi=False
 
         # ⭐ 新增：从环境变量读取最大可操作金额
         self.max_capital = self._get_max_capital_from_env()
@@ -770,7 +763,54 @@ class MyStrategy(IStrategy):
         """定义额外的信息对"""
         return []
 
+    def _has_open_trade(self, pair: str) -> bool:
+        """
+        检查 Freqtrade 中是否有该币种的真实持仓
+
+        Args:
+            pair: 交易对，如 'BTC/USDT:USDT'
+
+        Returns:
+            bool: True=有持仓, False=无持仓
+        """
+        try:
+            # 获取所有打开的交易
+            open_trades = Trade.get_open_trades()
+
+            # 检查是否有该交易对的持仓
+            for trade in open_trades:
+                if trade.pair == pair and trade.is_open:
+                    return True
+
+            return False
+
+        except Exception as e:
+            print(f'[ERROR] 检查持仓失败: {e}')
+            # 出错时保守处理，假设无持仓
+            return False
+
+    def _get_close_action_for_position(self, pair: str) -> int:
+        """
+        根据持仓方向返回对应的平仓信号
+
+        Returns:
+            多仓 → 返回多仓平仓信号
+            空仓 → 返回空仓平仓信号
+            无仓 → 返回 0
+        """
+        try:
+            for trade in Trade.get_open_trades():
+                if trade.pair == pair and trade.is_open:
+                    if trade.is_long:
+                        return 1  # ← 您的多仓平仓信号
+                    else:
+                        return -1  # ← 您的空仓平仓信号
+            return 0
+        except:
+            return 0
+
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        
         """添加技术指标 - 保持原始逻辑"""
         pair = metadata['pair']
         tar = extract_currency(pair)
@@ -796,6 +836,7 @@ class MyStrategy(IStrategy):
                 print(f'[ERROR] {tar} 获取趋势失败: {e}，使用默认值 1')
                 trend_direction = 1
 
+
         if not pc.init_state:
             temp_his = dataframe.iloc[-300:-2].copy()
             temp_his = temp_his.rename(columns={'date': 'timestamp'})
@@ -812,6 +853,30 @@ class MyStrategy(IStrategy):
                 action, _, vol = pc.work(cur_data, trend_direction)
 
             pc.vol_factor = vol + 0.3
+            has_position = self._has_open_trade(pair)
+
+            if trend_direction == 0 :
+                print(f'趋势不明确，暂停交易')
+                dir=self._get_close_action_for_position(pair)
+                if dir !=0:
+                    action=4
+                    if dir == -1:
+                        action += 3
+                if 'action' not in dataframe.columns:
+                    dataframe['action'] = 0
+
+                dataframe.iloc[-1, dataframe.columns.get_loc('action')] = action
+                print(f'趋势不明确，需要平仓，交易对:{pair},方向:{dir}')
+
+                return dataframe
+
+            if action == 3 and not has_position:  # ⭐ 检查真实持仓
+                pc.reset()
+                dataframe.iloc[-1, dataframe.columns.get_loc('action')] = 0
+                print(f'模型恢复工作，需要重置,币种为:{pair}')
+
+                return dataframe
+
 
             if trend_direction == -1 and action in [2, 3, 4]:
                 action += 3
@@ -826,6 +891,17 @@ class MyStrategy(IStrategy):
             print(f'[WARN] {tar} 模型未就绪')
 
         return dataframe
+
+    def leverage(self, pair: str, current_time: datetime, current_rate: float,
+                 proposed_leverage: float, max_leverage: float, entry_tag: Optional[str],
+                 side: str, **kwargs) -> float:
+        """
+        返回杠杆倍数
+        如果不实现这个方法，即使配置文件有杠杆设置也不会生效
+
+        """
+        leverage = self.config.get("leverage", self.default_leverage)
+        return leverage  # 使用配置文件中的杠杆值
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """生成入场信号 - 保持原始逻辑"""
