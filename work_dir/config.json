@@ -15,7 +15,7 @@
     "process_only_new_candles": true,
     "trading_mode": "futures",
     "margin_mode": "isolated",
-    "leverage": 5,
+    "leverage": 3,
     "position_stacking": true,
     "use_custom_exit": true,
     "use_exit_signal": true,

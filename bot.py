@@ -756,7 +756,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "2️⃣ 使用 /bind 绑定交易所API\n"
             "3️⃣ 充值并订阅套餐\n"
             "4️⃣ 订阅成功后，点击 '▶️ 启动交易' 开始量化\n\n"
-            "❓ 需要帮助? 点击 '❓ 帮助'"
+            "❓ 需要帮助? 点击 '❓ 帮助'\n"
+            "白皮书参考：https://easymoney.gitbook.io/main/docs-2"
         )
     else:
         welcome_text = (
@@ -772,7 +773,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "2️⃣ Use /bind to link your exchange API\n"
             "3️⃣ Deposit funds and subscribe to a plan\n"
             "4️⃣ Once subscribed, click '▶️ Start Trading' to begin quantitative trading\n\n"
-            "❓ Need help? Click '❓ Help'"
+            "❓ Need help? Click '❓ Help'\n"
+            "WhitePaper：https://easymoney.gitbook.io/main/docs-2"
         )
 
     await update.message.reply_text(welcome_text, reply_markup=keyboard, parse_mode='HTML')
@@ -810,8 +812,10 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"🆔 系统ID: {new_user_id}\n\n"
                     f"<b>下一步:</b>\n"
                     f"请使用 /bind 命令绑定您的币安API密钥\n\n"
-                    f"<b>格式:</b>\n"
+                    f"获取币安API的操作指南：https://easymoney.gitbook.io/main/docs-2/bi-an-api-dao-chu-ji-bang-ding-jiao-cheng\n"
+                    f"<b>格式:</b>\n"                    
                     f"<code>/bind API_KEY SECRET</code>"
+
                 )
             else:
                 success_msg = (
@@ -820,6 +824,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"🆔 System ID: {new_user_id}\n\n"
                     f"<b>Next Step:</b>\n"
                     f"Please use /bind command to bind your Binance API\n\n"
+                    f"How to Get Your Binance API Key：https://easymoney.gitbook.io/main/binance-api-export-and-binding-tutorial\n"
                     f"<b>Format:</b>\n"
                     f"<code>/bind API_KEY SECRET</code>"
                 )
