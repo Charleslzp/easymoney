@@ -38,6 +38,12 @@ class SwarmManager:
             self.db = Database()
             self.config_manager = ConfigManager()
 
+            # ⭐ 错峰调度配置
+            self.total_groups = 5  # 总共5个组
+            self.group_delay_minutes = 3  # 每组延迟3分钟
+            self.base_throttle_secs = 5  # 基础处理间隔
+            self.group_throttle_offset = 36  # 每组增加36秒
+
             self._ensure_overlay_network()
 
             if not self._is_swarm_initialized():
@@ -50,6 +56,28 @@ class SwarmManager:
             print(f"[ERROR] 无法连接到 Docker: {e}")
             self.client = None
 
+    # ========================================
+    # ⭐ 新增：错峰调度计算
+    # ========================================
+
+    def _calculate_schedule_params(self, user_id: int) -> Dict[str, int]:
+        """
+        计算用户的调度参数
+        返回: {
+            'user_group': 0-4,
+            'group_offset_minutes': 0/3/6/9/12,
+            'process_throttle_secs': 5/41/77/113/149
+        }
+        """
+        user_group = user_id % self.total_groups
+        group_offset_minutes = user_group * self.group_delay_minutes
+        process_throttle_secs = self.base_throttle_secs + (user_group * self.group_throttle_offset)
+
+        return {
+            'user_group': user_group,
+            'group_offset_minutes': group_offset_minutes,
+            'process_throttle_secs': process_throttle_secs
+        }
     # ========================================
     # Swarm 初始化与检查
     # ========================================
@@ -327,7 +355,19 @@ class SwarmManager:
 
 
         try:
-            # 1. 查找最佳节点
+            # ⭐ 1. 计算错峰调度参数
+            schedule_params = self._calculate_schedule_params(user_id)
+            user_group = schedule_params['user_group']
+            group_offset_minutes = schedule_params['group_offset_minutes']
+            process_throttle_secs = schedule_params['process_throttle_secs']
+
+            print(f"\n[SCHEDULE] ====================================")
+            print(f"[SCHEDULE] 用户 {user_id} 调度参数:")
+            print(f"[SCHEDULE] - 所属组: 第 {user_group} 组 (共{self.total_groups}组)")
+            print(f"[SCHEDULE] - 启动延迟: {group_offset_minutes} 分钟")
+            print(f"[SCHEDULE] - 处理间隔: {process_throttle_secs} 秒")
+            print(f"[SCHEDULE] ====================================\n")
+            # 2. 查找最佳节点
             best_node = self._find_best_node()
             if not best_node:
                 return False, (
@@ -431,6 +471,10 @@ class SwarmManager:
                     f'API_SECRET={secret}',
                     f'FT_MAX_CAPITAL={max_capital}',
                     f'REMOTE_IP={local_ip}',
+                    # ⭐ 新增错峰调度参数
+                    f'USER_GROUP={user_group}',
+                    f'GROUP_OFFSET_MINUTES={group_offset_minutes}',
+                    f'PROCESS_THROTTLE_SECS={process_throttle_secs}'
 
                     'CONFIG_TEMPLATE=/freqtrade/custom_config/config.json',
                     'CONFIG_RUNTIME=/freqtrade/runtime_config.json'
@@ -441,6 +485,10 @@ class SwarmManager:
                     f'API_KEY={api_key}',
                     f'API_SECRET={secret}',
                     f'REMOTE_IP={local_ip}',
+                    # ⭐ 新增错峰调度参数
+                    f'USER_GROUP={user_group}',
+                    f'GROUP_OFFSET_MINUTES={group_offset_minutes}',
+                    f'PROCESS_THROTTLE_SECS={process_throttle_secs}'    
 
                     'CONFIG_TEMPLATE=/freqtrade/custom_config/config.json',
                     'CONFIG_RUNTIME=/freqtrade/runtime_config.json'
@@ -463,6 +511,10 @@ class SwarmManager:
             REMOTE_IP="${{REMOTE_IP}}"
             CONFIG_TEMPLATE="${{CONFIG_TEMPLATE:-/freqtrade/custom_config/config.json}}"
             CONFIG_RUNTIME="${{CONFIG_RUNTIME:-/freqtrade/runtime_config.json}}"
+            # 错峰调度参数
+            USER_GROUP="${{USER_GROUP}}"
+            GROUP_OFFSET_MINUTES="${{GROUP_OFFSET_MINUTES}}"
+            PROCESS_THROTTLE_SECS="${{PROCESS_THROTTLE_SECS}}"
 
             echo "🔧 修复权限..."
             echo "   当前用户: $(whoami)"
@@ -524,7 +576,11 @@ class SwarmManager:
             echo "✅ Configuration template found: $CONFIG_TEMPLATE"
             echo "🔧 Injecting API credentials into configuration..."
 
-            jq --arg apikey "$API_KEY" --arg secret "$API_SECRET" '
+            jq --arg apikey "$API_KEY" --arg secret "$API_SECRET" \\
+            --argjson throttle $PROCESS_THROTTLE_SECS \\
+            --argjson group $USER_GROUP \\
+            --argjson offset $GROUP_OFFSET_MINUTES '
+            
                if .exchange then 
                  .exchange.key = $apikey | 
                  .exchange.secret = $secret 
@@ -536,7 +592,19 @@ class SwarmManager:
                if .exchange.ccxt_async_config then 
                  .exchange.ccxt_async_config.apiKey = $apikey | 
                  .exchange.ccxt_async_config.secret = $secret 
-               else . end
+               else . end |
+               # ⭐ 注入错峰调度参数
+               if .internals then
+                 .internals.process_throttle_secs = $throttle |
+                 .internals.user_group = $group |
+                 .internals.group_offset_minutes = $offset
+               else 
+                 .internals = {{
+                   "process_throttle_secs": $throttle,
+                   "user_group": $group,
+                   "group_offset_minutes": $offset
+                 }}
+               end
                ' "$CONFIG_TEMPLATE" > "$CONFIG_RUNTIME"
 
             if [ $? -ne 0 ]; then
@@ -548,10 +616,14 @@ class SwarmManager:
 
             KEY_IN_CONFIG=$(jq -r '.exchange.key' "$CONFIG_RUNTIME")
             SECRET_IN_CONFIG=$(jq -r '.exchange.secret' "$CONFIG_RUNTIME")
+            THROTTLE_IN_CONFIG=$(jq -r '.internals.process_throttle_secs' "$CONFIG_RUNTIME")
+            GROUP_IN_CONFIG=$(jq -r '.internals.user_group' "$CONFIG_RUNTIME")
 
             if [ "$KEY_IN_CONFIG" = "$API_KEY" ] && [ "$SECRET_IN_CONFIG" = "$API_SECRET" ]; then
                 echo "✅ Configuration verified successfully"
                 echo "   Injected API Key: ${{KEY_IN_CONFIG:0:8}}...${{KEY_IN_CONFIG: -4}}"
+                echo "   Process Throttle: $THROTTLE_IN_CONFIG seconds"
+            echo "   User Group: $GROUP_IN_CONFIG"
             else
                 echo "❌ ERROR: Configuration verification failed"
                 exit 1
