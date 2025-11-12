@@ -474,7 +474,7 @@ class SwarmManager:
                     # ⭐ 新增错峰调度参数
                     f'USER_GROUP={user_group}',
                     f'GROUP_OFFSET_MINUTES={group_offset_minutes}',
-                    f'PROCESS_THROTTLE_SECS={process_throttle_secs}'
+                    f'PROCESS_THROTTLE_SECS={process_throttle_secs}',
 
                     'CONFIG_TEMPLATE=/freqtrade/custom_config/config.json',
                     'CONFIG_RUNTIME=/freqtrade/runtime_config.json'
@@ -488,7 +488,7 @@ class SwarmManager:
                     # ⭐ 新增错峰调度参数
                     f'USER_GROUP={user_group}',
                     f'GROUP_OFFSET_MINUTES={group_offset_minutes}',
-                    f'PROCESS_THROTTLE_SECS={process_throttle_secs}'    
+                    f'PROCESS_THROTTLE_SECS={process_throttle_secs}'   ,
 
                     'CONFIG_TEMPLATE=/freqtrade/custom_config/config.json',
                     'CONFIG_RUNTIME=/freqtrade/runtime_config.json'
