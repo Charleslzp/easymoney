@@ -361,18 +361,19 @@ def init_scheduler():
     logger.info("📊 执行首次数据更新...")
     update_trend_data()
 
-    # 每8小时更新一次
+    # 在每天的固定时间点执行: 00:01, 16:01, 18:01
     scheduler.add_job(
         func=update_trend_data,
-        trigger='interval',
-        hours=UPDATE_INTERVAL_HOURS,
+        trigger='cron',
+        hour='0,16,18',
+        minute='1',
         id='update_trend',
         name='Update trend data',
         replace_existing=True
     )
 
     scheduler.start()
-    logger.info(f"✅ 定时任务已启动 - 每 {UPDATE_INTERVAL_HOURS} 小时更新一次")
+    logger.info("✅ 定时任务已启动 - 每天 00:01, 16:01, 18:01 执行更新")
 
     return scheduler
 
